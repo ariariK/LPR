@@ -155,9 +155,6 @@ char buffer[MEM_SIZE_SM] = {0,};
 void MainWindow::Update()
 {
     //qDebug() << "Update";
-    ui->screen->setContentsMargins(0,0,0,0);
-    ui->screen->setMinimumWidth( this->width() );
-    ui->screen->setMinimumHeight( this->height() );
 
 #if true    
 
@@ -165,7 +162,6 @@ void MainWindow::Update()
     SharedMemoryRead((char *)buffer);
 
     //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
-    //Mat cvimg = cv::Mat(1080, 1920, CV_8UC1, (char *)buffer);
     Mat cvimg = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
 
     //cv::cvtColor(cvimg, cvimg, cv::COLOR_BGR2RGB); // invert BGR to RGB

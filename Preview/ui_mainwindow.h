@@ -11,6 +11,7 @@
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QGridLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMenuBar>
@@ -23,6 +24,7 @@ class Ui_MainWindow
 {
 public:
     QWidget *centralwidget;
+    QGridLayout *gridLayout;
     QLabel *screen;
     QMenuBar *menubar;
     QStatusBar *statusbar;
@@ -31,16 +33,20 @@ public:
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName(QString::fromUtf8("MainWindow"));
-        MainWindow->resize(800, 600);
+        MainWindow->resize(1280, 720);
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName(QString::fromUtf8("centralwidget"));
+        gridLayout = new QGridLayout(centralwidget);
+        gridLayout->setObjectName(QString::fromUtf8("gridLayout"));
         screen = new QLabel(centralwidget);
         screen->setObjectName(QString::fromUtf8("screen"));
-        screen->setGeometry(QRect(10, 10, 601, 381));
+
+        gridLayout->addWidget(screen, 0, 0, 1, 1);
+
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName(QString::fromUtf8("menubar"));
-        menubar->setGeometry(QRect(0, 0, 800, 20));
+        menubar->setGeometry(QRect(0, 0, 1280, 20));
         MainWindow->setMenuBar(menubar);
         statusbar = new QStatusBar(MainWindow);
         statusbar->setObjectName(QString::fromUtf8("statusbar"));

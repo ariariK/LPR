@@ -1,4 +1,4 @@
-#include <QProcess>
+﻿#include <QProcess>
 
 #include <iostream>
 #include <sstream>
@@ -18,8 +18,10 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
+
     ui->setupUi(this);
 
+    // 동작시간
     runTime.start();
 
     // Set Title
@@ -117,12 +119,16 @@ MainWindow::~MainWindow()
 
 void MainWindow::updateProgressBar()
 {
-    value++;
-    ui->progressBar->setValue(value%100);
-
     // Running Time
     int nElapsedTime = runTime.elapsed();
-    ui->runningTime->setText(QTime::fromMSecsSinceStartOfDay(nElapsedTime).toString("hh:mm:ss"));
+
+    value++;
+    //ui->progressBar->setValue(value%100);
+    ui->progressBar->setTextVisible(true);
+    ui->progressBar->setFormat(QTime::fromMSecsSinceStartOfDay(nElapsedTime).toString("hh:mm:ss"));
+
+
+    //ui->runningTime->setText(QTime::fromMSecsSinceStartOfDay(nElapsedTime).toString("hh:mm:ss"));
 }
 
 void MainWindow::updateMacAddress()
