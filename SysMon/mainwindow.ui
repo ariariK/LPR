@@ -18,7 +18,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>150</y>
+      <y>130</y>
       <width>491</width>
       <height>51</height>
      </rect>
@@ -41,7 +41,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>270</y>
+      <y>250</y>
       <width>491</width>
       <height>51</height>
      </rect>
@@ -64,7 +64,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>330</y>
+      <y>310</y>
       <width>491</width>
       <height>51</height>
      </rect>
@@ -87,7 +87,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>390</y>
+      <y>370</y>
       <width>491</width>
       <height>51</height>
      </rect>
@@ -109,9 +109,9 @@
    <widget class="QLabel" name="label_5">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>10</y>
-      <width>1061</width>
+      <x>310</x>
+      <y>0</y>
+      <width>451</width>
       <height>61</height>
      </rect>
     </property>
@@ -147,11 +147,14 @@
       <bold>true</bold>
      </font>
     </property>
+    <property name="minimum">
+     <number>0</number>
+    </property>
     <property name="maximum">
      <number>0</number>
     </property>
     <property name="value">
-     <number>0</number>
+     <number>50</number>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
@@ -161,7 +164,7 @@
     <property name="geometry">
      <rect>
       <x>580</x>
-      <y>150</y>
+      <y>130</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -187,7 +190,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>210</y>
+      <y>190</y>
       <width>491</width>
       <height>51</height>
      </rect>
@@ -210,7 +213,7 @@
     <property name="geometry">
      <rect>
       <x>580</x>
-      <y>210</y>
+      <y>190</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -236,7 +239,7 @@
     <property name="geometry">
      <rect>
       <x>580</x>
-      <y>270</y>
+      <y>250</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -262,7 +265,7 @@
     <property name="geometry">
      <rect>
       <x>580</x>
-      <y>330</y>
+      <y>310</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -288,7 +291,7 @@
     <property name="geometry">
      <rect>
       <x>580</x>
-      <y>390</y>
+      <y>370</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -314,7 +317,7 @@
     <property name="geometry">
      <rect>
       <x>860</x>
-      <y>270</y>
+      <y>250</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -340,7 +343,7 @@
     <property name="geometry">
      <rect>
       <x>860</x>
-      <y>330</y>
+      <y>310</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -366,7 +369,7 @@
     <property name="geometry">
      <rect>
       <x>860</x>
-      <y>390</y>
+      <y>370</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -392,7 +395,7 @@
     <property name="geometry">
      <rect>
       <x>25</x>
-      <y>110</y>
+      <y>90</y>
       <width>481</width>
       <height>21</height>
      </rect>
@@ -415,7 +418,7 @@
     <property name="geometry">
      <rect>
       <x>580</x>
-      <y>110</y>
+      <y>90</y>
       <width>211</width>
       <height>21</height>
      </rect>
@@ -438,7 +441,7 @@
     <property name="geometry">
      <rect>
       <x>860</x>
-      <y>110</y>
+      <y>90</y>
       <width>211</width>
       <height>21</height>
      </rect>
@@ -461,7 +464,7 @@
     <property name="geometry">
      <rect>
       <x>860</x>
-      <y>150</y>
+      <y>130</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -487,7 +490,7 @@
     <property name="geometry">
      <rect>
       <x>860</x>
-      <y>210</y>
+      <y>190</y>
       <width>211</width>
       <height>51</height>
      </rect>
@@ -507,6 +510,78 @@
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_mac">
+    <property name="geometry">
+     <rect>
+      <x>580</x>
+      <y>460</y>
+      <width>491</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>16</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_10">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>460</y>
+      <width>491</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>16</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
+    <property name="text">
+     <string>MAC ADDRESS</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="runningTime">
+    <property name="geometry">
+     <rect>
+      <x>790</x>
+      <y>10</y>
+      <width>291</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>15</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>동작시간</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
     </property>
    </widget>
   </widget>

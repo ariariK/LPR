@@ -10,6 +10,7 @@
 
 #include <QMainWindow>
 #include <QProgressBar>
+#include <QTime>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -27,6 +28,12 @@ private:
     qint64 value;
     QProgressBar *progressBar;
 
+    int fd[2];
+    pid_t childpid;
+
+    QTime runTime;
+
+
 private:
     Ui::MainWindow *ui;
     Thread *thread;
@@ -36,10 +43,17 @@ private:
     ThreadDevUsb1   *thDevUsb1;
     ThreadDevUsb2   *thDevUsb2;
 
+    void updateMacAddress();
     void updateProgressBar();
 
+    // IPC
+    void initPIPE();
+    void readPIPE();
+    void writePIPE();
+    void closePIPE();
+
 private slots:
-    void Receive(int data);
+    void Run(int data);
 
     void updateEth0();
     void updateEth1();

@@ -22,7 +22,7 @@ QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_MainWindow_t {
     QByteArrayData data[9];
-    char stringdata0[80];
+    char stringdata0[76];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -32,17 +32,17 @@ struct qt_meta_stringdata_MainWindow_t {
 static const qt_meta_stringdata_MainWindow_t qt_meta_stringdata_MainWindow = {
     {
 QT_MOC_LITERAL(0, 0, 10), // "MainWindow"
-QT_MOC_LITERAL(1, 11, 7), // "Receive"
-QT_MOC_LITERAL(2, 19, 0), // ""
-QT_MOC_LITERAL(3, 20, 4), // "data"
-QT_MOC_LITERAL(4, 25, 10), // "updateEth0"
-QT_MOC_LITERAL(5, 36, 10), // "updateEth1"
-QT_MOC_LITERAL(6, 47, 10), // "updateUsb0"
-QT_MOC_LITERAL(7, 58, 10), // "updateUsb1"
-QT_MOC_LITERAL(8, 69, 10) // "updateUsb2"
+QT_MOC_LITERAL(1, 11, 3), // "Run"
+QT_MOC_LITERAL(2, 15, 0), // ""
+QT_MOC_LITERAL(3, 16, 4), // "data"
+QT_MOC_LITERAL(4, 21, 10), // "updateEth0"
+QT_MOC_LITERAL(5, 32, 10), // "updateEth1"
+QT_MOC_LITERAL(6, 43, 10), // "updateUsb0"
+QT_MOC_LITERAL(7, 54, 10), // "updateUsb1"
+QT_MOC_LITERAL(8, 65, 10) // "updateUsb2"
 
     },
-    "MainWindow\0Receive\0\0data\0updateEth0\0"
+    "MainWindow\0Run\0\0data\0updateEth0\0"
     "updateEth1\0updateUsb0\0updateUsb1\0"
     "updateUsb2"
 };
@@ -86,7 +86,7 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         auto *_t = static_cast<MainWindow *>(_o);
         Q_UNUSED(_t)
         switch (_id) {
-        case 0: _t->Receive((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 0: _t->Run((*reinterpret_cast< int(*)>(_a[1]))); break;
         case 1: _t->updateEth0(); break;
         case 2: _t->updateEth1(); break;
         case 3: _t->updateUsb0(); break;

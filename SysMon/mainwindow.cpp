@@ -7,6 +7,11 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+
 using namespace std;
 
 MainWindow::MainWindow(QWidget *parent)
@@ -14,6 +19,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    runTime.start();
 
     // Set Title
     this->setWindowTitle("LPR - AI Edge Device");
@@ -56,11 +63,17 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_usb_r3_conn->setText("ready...");
     //ui->label_usb_r3_conn->hide();
 
+    // MAC Address
+    ui->label_mac->setStyleSheet("QLabel { background-color : gray; color : black; }");
+    ui->label_mac->setText("ready...");
+
+    // IPC
+    initPIPE();
 
     // 쓰레드
     thread = new Thread(this);
     thread->start();
-    connect(thread, SIGNAL(Send(int)), this, SLOT(Receive(int)));
+    connect(thread, SIGNAL(Send(int)), this, SLOT(Run(int)));
 
     // thread - dev ethernet0
     thDevEth0 = new ThreadDevEth0(this);
@@ -92,13 +105,85 @@ MainWindow::~MainWindow()
 {
     delete thread;
     delete thDevEth0;
+    delete thDevEth1;
+    delete thDevUsb0;
+    delete thDevUsb1;
+    delete thDevUsb2;
+
+    closePIPE();
+
     delete ui;
 }
 
-void MainWindow::Receive(int data)
+void MainWindow::updateProgressBar()
+{
+    value++;
+    ui->progressBar->setValue(value%100);
+
+    // Running Time
+    int nElapsedTime = runTime.elapsed();
+    ui->runningTime->setText(QTime::fromMSecsSinceStartOfDay(nElapsedTime).toString("hh:mm:ss"));
+}
+
+void MainWindow::updateMacAddress()
+{
+    QProcess pMac;
+    pMac.start("sh");
+    pMac.write("ifconfig -a | grep eth0 | awk \'{print \$5\}\'");
+    pMac.closeWriteChannel();
+    pMac.waitForFinished();
+    QString output(pMac.readAllStandardOutput());
+    //qDebug() << output;
+    cout << output.toStdString() << endl;
+
+    // 이더넷 디바이스 체크
+    if (output.isEmpty())   // not found
+    {
+        ui->label_mac->setStyleSheet("QLabel { background-color : red; color : black; }");
+        ui->label_mac->setText("unknown");
+    }
+    else
+    {
+        ui->label_mac->setStyleSheet("QLabel { background-color : green; color : black; }");
+        output.remove(QChar('\n'), Qt::CaseInsensitive);
+        ui->label_mac->setText(output);
+    }
+}
+
+void MainWindow::initPIPE()
+{
+#ifdef __linux__
+#elif _WIN32
+#else
+#endif
+}
+
+void MainWindow::readPIPE()
+{
+
+}
+
+void MainWindow::writePIPE()
+{
+
+}
+
+void MainWindow::closePIPE()
+{
+
+}
+
+
+
+void MainWindow::Run(int data)
 {
     //qDebug() << data;
+
+    // 프로그레스바
     updateProgressBar();
+
+    // IPC - pipe
+    readPIPE();
 }
 
 void MainWindow::updateEth0()
@@ -121,6 +206,28 @@ void MainWindow::updateEth0()
     {
         ui->label_eth0->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_eth0->setText("OK");
+
+        // 접속상태 체크(Link up/down)
+        pEth0.start("sh");
+        pEth0.write("cat /sys/class/net/eth0/operstate");
+        pEth0.closeWriteChannel();
+        pEth0.waitForFinished();
+        QString output(pEth0.readAllStandardOutput());
+        cout << output.toStdString() << endl;
+        if (output.isEmpty() || output.contains("up", Qt::CaseInsensitive))     // connected
+        {
+            //ui->label_eth0_conn->show();
+            ui->label_eth0_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
+            ui->label_eth0_conn->setText("Connected");
+        }
+        else                                                                    // not connected
+        {
+            //ui->label_eth0_conn->hide();
+            ui->label_eth0_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
+            ui->label_eth0_conn->setText("ready...");
+        }
+
+        updateMacAddress();
     }
 
     // 종료
@@ -147,6 +254,26 @@ void MainWindow::updateEth1()
     {
         ui->label_eth1->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_eth1->setText("OK");
+
+        // 접속상태 체크(Link up/down)
+        pEth1.start("sh");
+        pEth1.write("cat /sys/class/net/eth1/operstate");
+        pEth1.closeWriteChannel();
+        pEth1.waitForFinished();
+        QString output(pEth1.readAllStandardOutput());
+        cout << output.toStdString() << endl;
+        if (output.isEmpty() || output.contains("up", Qt::CaseInsensitive))     // connected
+        {
+            //ui->label_eth1_conn->show();
+            ui->label_eth1_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
+            ui->label_eth1_conn->setText("Connected");
+        }
+        else                                                                    // not connected
+        {
+            //ui->label_eth1_conn->hide();
+            ui->label_eth1_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
+            ui->label_eth1_conn->setText("ready...");
+        }
     }
 
     // 종료
@@ -352,8 +479,4 @@ void MainWindow::updateUsb2()
     }
 }
 
-void MainWindow::updateProgressBar()
-{
-    value++;
-    ui->progressBar->setValue(value%100);
-}
+
