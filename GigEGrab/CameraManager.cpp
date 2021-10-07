@@ -218,6 +218,7 @@ int CameraManager::SetSavePath(string path)
 int CameraManager::RunGrabbing()
 {
 	pCamGrab->SetCameraPtr(pCam);
+	pCamGrab->Init();
 	pCamGrab->RunGrabbing();
 
 /*

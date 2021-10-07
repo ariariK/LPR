@@ -17,10 +17,10 @@ public:
     void ExitPreview();
 
 private:
-    void run(int data);
+    void run();
 
 signals:
-    void Send(int data);
+    void Send();
 };
 
 #endif // THREADPREVIEW_H

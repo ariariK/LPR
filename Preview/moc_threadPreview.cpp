@@ -21,8 +21,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_ThreadPreview_t {
-    QByteArrayData data[4];
-    char stringdata0[25];
+    QByteArrayData data[3];
+    char stringdata0[20];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -33,11 +33,10 @@ static const qt_meta_stringdata_ThreadPreview_t qt_meta_stringdata_ThreadPreview
     {
 QT_MOC_LITERAL(0, 0, 13), // "ThreadPreview"
 QT_MOC_LITERAL(1, 14, 4), // "Send"
-QT_MOC_LITERAL(2, 19, 0), // ""
-QT_MOC_LITERAL(3, 20, 4) // "data"
+QT_MOC_LITERAL(2, 19, 0) // ""
 
     },
-    "ThreadPreview\0Send\0\0data"
+    "ThreadPreview\0Send\0"
 };
 #undef QT_MOC_LITERAL
 
@@ -55,10 +54,10 @@ static const uint qt_meta_data_ThreadPreview[] = {
        1,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    1,   19,    2, 0x06 /* Public */,
+       1,    0,   19,    2, 0x06 /* Public */,
 
  // signals: parameters
-    QMetaType::Void, QMetaType::Int,    3,
+    QMetaType::Void,
 
        0        // eod
 };
@@ -69,19 +68,20 @@ void ThreadPreview::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _i
         auto *_t = static_cast<ThreadPreview *>(_o);
         Q_UNUSED(_t)
         switch (_id) {
-        case 0: _t->Send((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 0: _t->Send(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
         int *result = reinterpret_cast<int *>(_a[0]);
         {
-            using _t = void (ThreadPreview::*)(int );
+            using _t = void (ThreadPreview::*)();
             if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&ThreadPreview::Send)) {
                 *result = 0;
                 return;
             }
         }
     }
+    Q_UNUSED(_a);
 }
 
 QT_INIT_METAOBJECT const QMetaObject ThreadPreview::staticMetaObject = { {
@@ -125,10 +125,9 @@ int ThreadPreview::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 }
 
 // SIGNAL 0
-void ThreadPreview::Send(int _t1)
+void ThreadPreview::Send()
 {
-    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(&_t1)) };
-    QMetaObject::activate(this, &staticMetaObject, 0, _a);
+    QMetaObject::activate(this, &staticMetaObject, 0, nullptr);
 }
 QT_WARNING_POP
 QT_END_MOC_NAMESPACE

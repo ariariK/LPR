@@ -21,8 +21,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_MainWindow_t {
-    QByteArrayData data[5];
-    char stringdata0[28];
+    QByteArrayData data[4];
+    char stringdata0[23];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -34,11 +34,10 @@ static const qt_meta_stringdata_MainWindow_t qt_meta_stringdata_MainWindow = {
 QT_MOC_LITERAL(0, 0, 10), // "MainWindow"
 QT_MOC_LITERAL(1, 11, 6), // "Update"
 QT_MOC_LITERAL(2, 18, 0), // ""
-QT_MOC_LITERAL(3, 19, 3), // "Run"
-QT_MOC_LITERAL(4, 23, 4) // "data"
+QT_MOC_LITERAL(3, 19, 3) // "Run"
 
     },
-    "MainWindow\0Update\0\0Run\0data"
+    "MainWindow\0Update\0\0Run"
 };
 #undef QT_MOC_LITERAL
 
@@ -57,11 +56,11 @@ static const uint qt_meta_data_MainWindow[] = {
 
  // slots: name, argc, parameters, tag, flags
        1,    0,   24,    2, 0x08 /* Private */,
-       3,    1,   25,    2, 0x08 /* Private */,
+       3,    0,   25,    2, 0x08 /* Private */,
 
  // slots: parameters
     QMetaType::Void,
-    QMetaType::Void, QMetaType::Int,    4,
+    QMetaType::Void,
 
        0        // eod
 };
@@ -73,10 +72,11 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         Q_UNUSED(_t)
         switch (_id) {
         case 0: _t->Update(); break;
-        case 1: _t->Run((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 1: _t->Run(); break;
         default: ;
         }
     }
+    Q_UNUSED(_a);
 }
 
 QT_INIT_METAOBJECT const QMetaObject MainWindow::staticMetaObject = { {

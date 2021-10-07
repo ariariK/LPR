@@ -11,22 +11,180 @@
 #include <sstream>
 #include <chrono>
 
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/msg.h>
+//#include <string.h>
+//#include <unistd.h>
+
 #include "Common.h"
 #include "CameraGrab.h"
 
+using namespace std;
 using namespace chrono;
 
-class Common gComm;
+ 
+///////////////////////////////////////////////////////////////////////////////////////////
+#define  KEY_NUM_SM		1234
+#define  MEM_SIZE_SM	512*4096
 
+#define  KEY_NUM_MQ   2345
+
+int CameraGrab::SharedMemoryFree(void)
+{
+	if(shmctl(shmid, IPC_RMID, 0) == -1) 
+	{
+		msg = "Shmctl failed";
+		ERR_LOG(msg);
+
+		return -1;
+	}
+
+	msg = "Shared memory end";
+	INFO_LOG(msg);
+
+	return 1;
+}
+
+int CameraGrab::SharedMemoryCreate()
+{
+	msg = "SharedMemoryCreate()";
+	INFO_LOG(msg);
+
+	if ((shmid = shmget((key_t)KEY_NUM_SM, MEM_SIZE_SM, IPC_CREAT| IPC_EXCL | 0666)) == -1) 
+	{
+		msg = "There was shared memory";
+		INFO_LOG(msg);
+
+		shmid = shmget((key_t)KEY_NUM_SM, MEM_SIZE_SM, IPC_CREAT| 0666);
+		if(shmid == -1)
+		{
+			msg = "[0] Shared memory create fail";
+			ERR_LOG(msg);
+
+			return -1;
+		}
+		else
+		{
+			shmid = shmget((key_t)KEY_NUM_SM, MEM_SIZE_SM, IPC_CREAT| 0666);
+			if(shmid == -1)
+			{
+				msg = "[1] Shared memory create fail";
+				ERR_LOG(msg);
+
+				return -1;
+			}
+		}
+	}
+    
+  return 1;
+}
+
+int CameraGrab::SharedMemoryWrite(ImagePtr shareddata, int size)
+{
+	void *shmaddr;
+	if(size > MEM_SIZE_SM)
+	{
+		msg = "Shared memory size over";
+		ERR_LOG(msg);
+
+		return -1;
+	}
+
+	if((shmaddr = shmat(shmid, (void *)0, 0)) == (void *)-1) 
+	{
+		msg = "Shmat failed";
+		ERR_LOG(msg);
+
+		return -1;
+	}
+
+	memcpy((char *)shmaddr, shareddata->GetData(), size);
+
+	if(shmdt(shmaddr) == -1) 
+	{
+		msg = "Shmdt failed";
+		ERR_LOG(msg);
+		return -1;
+	}
+
+	return 1;
+}
+
+int CameraGrab::MessageQueueCreate()
+{
+	// Get Message Queue ID
+	if ((msqid = msgget((key_t)KEY_NUM_MQ, IPC_CREAT|0666))==-1)
+	{
+		msg = "MessageQueueCreate() : msgget failed";
+		ERR_LOG(msg);
+
+		return -1;
+	}
+
+	return 1;
+}
+
+int CameraGrab::MessageQueueQNum()
+{
+	struct msqid_ds msqds;
+	if (msgctl(msqid, IPC_STAT, (struct msqid_ds*)&msqds)==-1)
+	{
+		return -1;
+	}
+	//printf("msqds = %d, %d\n", msqds.msg_qnum, msqds.msg_cbytes);
+	return msqds.msg_qnum;
+}
+
+int CameraGrab::MessageQueueWrite()
+{
+	//if (msgsnd(msqid, &msq, sizeof(struct real_data), 0)==-1)						// blocking
+	if (msgsnd(msqid, &msq, sizeof(struct real_data), IPC_NOWAIT)==-1)	// non blocking
+	{
+		msg = "MessageQueueWrite() : msgsnd failed";
+		ERR_LOG(msg);
+
+		return -1;
+	}
+
+	return 1;
+}
+int CameraGrab::MessageQueueFree()
+{
+	if (msgctl(msqid, IPC_RMID, NULL)==-1)
+	{
+		msg = "MessageQueueFree() : msgctl failed";
+		ERR_LOG(msg);
+
+		return -1;
+  }
+
+	return 1;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+class Common gComm;
 CameraGrab::CameraGrab()
 {
 	bSaveEnable = false;
 	strSavePath.empty();
+
+#if true
+	msq.msg_type = 1;
+	msq.data.capWidth = 0;
+	msq.data.capHeight = 0;
+
+  SharedMemoryCreate();
+	MessageQueueCreate();
+#endif
 }
 
 
 CameraGrab::~CameraGrab()
 {
+	SharedMemoryFree();
+	MessageQueueFree();
 }
 
 bool CameraGrab::Init()
@@ -104,6 +262,7 @@ int CameraGrab::RunGrabbing()
 		int pack_size = 100;
 		int64_t imageCnt = 0;
 		int64_t runningTime = 0;
+	
 		do {
 			try
 			{
@@ -122,6 +281,7 @@ int CameraGrab::RunGrabbing()
 					msg = "Image incomplete: " + (string)Image::GetImageStatusDescription(pResultImage->GetImageStatus());
 					WARN_LOG(msg);
 				#endif
+					continue;
 				}
 				else
 				{
@@ -130,7 +290,18 @@ int CameraGrab::RunGrabbing()
 					const size_t width = pResultImage->GetWidth();
 					const size_t height = pResultImage->GetHeight();
 
-					
+					// Update
+					if (msq.data.capWidth != (int)width || msq.data.capHeight != (int)height || MessageQueueQNum() < 1)
+					{
+						msq.data.capWidth = width;
+						msq.data.capHeight = height;
+						MessageQueueWrite();
+					}
+
+					// write to shared memory
+					ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
+					SharedMemoryWrite(convertedImage, convertedImage->GetBufferSize());
+
 					if (bSaveEnable) 
 					{
 						ostringstream filename;
@@ -139,7 +310,7 @@ int CameraGrab::RunGrabbing()
 						//filename << strSavePath << "/Grab-" << timer << ".jpg";
 						try 
 						{
-							ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
+							//ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
 							convertedImage->Save(filename.str().c_str());
 							pResultImage->Release();
 						}

@@ -19,16 +19,14 @@ void ThreadPreview::ExitPreview()
 {
 }
 
-void ThreadPreview::run(int data)
+void ThreadPreview::run()
 {
-    int i = 0;
-
-#if false
+#if true
     while(1)
     {
-        i++;
-        emit Send(i);
+        emit Send();
         msleep(100);
+        break;
     }
 #endif
 }

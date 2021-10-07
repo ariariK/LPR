@@ -9,6 +9,100 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "Spinnaker.h"
+#include "SpinGenApi/SpinnakerGenApi.h"
+
+using namespace Spinnaker;
+using namespace Spinnaker::GenApi;
+using namespace Spinnaker::GenICam;
+
+///////////////////////////////////////////////////////////////////////////////////////////
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/msg.h>
+#include <errno.h>
+
+#define  KEY_NUM_SM		1234
+#define  MEM_SIZE_SM	512*4096
+
+#define  KEY_NUM_MQ     2345
+
+
+int MainWindow::SharedMemoryInit(void)
+{
+    if((shmid = shmget((key_t)KEY_NUM_SM, 0, 0)) == -1)
+    {
+        perror("Shmid failed");
+
+        return -1;
+    }
+
+    return 1;
+}
+
+int MainWindow::SharedMemoryRead(char *sMemory)
+{
+    void *shmaddr;
+    
+    if((shmaddr = shmat(shmid, (void *)0, 0)) == (void *)-1)
+    {
+        perror("Shmat failed");
+        return -1;
+    }
+
+    memcpy(sMemory, (char *)shmaddr, MEM_SIZE_SM);
+    
+    if(shmdt(shmaddr) == -1)
+    {
+        perror("Shmdt failed");
+        return -1;
+    }
+    
+    return 0;
+}
+
+int MainWindow::MessageQueueInit()
+{
+    //받아오는 쪽의 msqid얻어오고
+    if ((msqid=msgget((key_t)KEY_NUM_MQ, IPC_CREAT|0666)) == -1)
+    {
+        perror("msgget failed\n");
+        return -1;
+    }
+
+    return 1;
+}
+
+int MainWindow::MessageQueueRead()
+{
+    //if(msgrcv(msqid, &msq, sizeof(struct real_data), 0, 0)==-1){
+    if (msgrcv(msqid, &msq, sizeof(struct real_data), 0, IPC_NOWAIT) == -1)
+    {
+        if (errno != ENOMSG)
+        {
+            printf("msgrcv failed : %d\n", errno);
+            return -1;
+        }
+        return 1;
+    }
+    //printf("name : %d, age :%d\n", msq.data.capWidth, msq.data.capHeight);
+
+    return 1;
+}
+
+int MainWindow::MessageQueueFree()
+{
+    if (msgctl(msqid, IPC_RMID, NULL)==-1)
+    {
+        perror("MessageQueueFree() : msgctl failed\n");
+        return -1;
+    }
+
+	return 1;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
 //ImagePtr convertedImage = NULL;
 
 MainWindow::MainWindow(QWidget *parent)
@@ -17,68 +111,78 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+#if true
     setStyleSheet("QWidget#MainWindow { background-color : black; color : white; }");
     setAutoFillBackground( true );
     statusBar()->hide();
 
+    ui->screen->setStyleSheet("QLabel { background-color : black; color : white; }");
+    //ui->screen->setStyleSheet("QLabel { background-color : blue; color : white; }");
+#endif
 
-    //ui->screen->setStyleSheet("QLabel { background-color : black; color : white; }");
-    ui->screen->setStyleSheet("QLabel { background-color : blue; color : white; }");
-    ui->screen->setContentsMargins(0,0,0,0);
-    ui->screen->setMinimumWidth( this->width() );
-    ui->screen->setMinimumHeight( this->height() );
+    GetParameters();
+    SharedMemoryInit();
+    MessageQueueInit();
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(Update()));
-    timer->start(10);
+    timer->start(200);
 
+#if false
     threadPreview = new ThreadPreview(this);
     threadPreview->start();
-    connect(threadPreview, SIGNAL(Send(int)), this, SLOT(Run(int)));
+    connect(threadPreview, SIGNAL(Send()), this, SLOT(Run()));
+#endif
 }
 
 MainWindow::~MainWindow()
 {
     disconnect(timer, SIGNAL(timeout()), this, SLOT(Update()));
-    disconnect(threadPreview, SIGNAL(Send(int)), this, SLOT(Run(int)));
+
+#if false
+    disconnect(threadPreview, SIGNAL(Send()), this, SLOT(Run()));
     delete threadPreview;
+#endif
+
     delete ui;
 }
 
+void MainWindow::GetParameters()
+{
+}
+
+char buffer[MEM_SIZE_SM] = {0,};
 void MainWindow::Update()
 {
-    qDebug() << "Update";
-
+    //qDebug() << "Update";
     ui->screen->setContentsMargins(0,0,0,0);
     ui->screen->setMinimumWidth( this->width() );
     ui->screen->setMinimumHeight( this->height() );
 
-#if false    
-    if (convertedImage != NULL) {
-/*
-    unsigned int XPadding = convertedImage->GetXPadding();
-    unsigned int YPadding = convertedImage->GetYPadding();
-    unsigned int rowsize = convertedImage->GetWidth();
-    unsigned int colsize = convertedImage->GetHeight();
-*/
+#if true    
 
-        Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
+    MessageQueueRead();
+    SharedMemoryRead((char *)buffer);
 
-        //cv::cvtColor(cvimg, cvimg, cv::COLOR_BGR2RGB); // invert BGR to RGB
+    //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
+    //Mat cvimg = cv::Mat(1080, 1920, CV_8UC1, (char *)buffer);
+    Mat cvimg = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
 
-        // ���÷��� fix to window
-        QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
-                                        cvimg.cols,
-                                        cvimg.rows,
-                                        QImage::Format_Grayscale8));
-        ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
-    }
+    //cv::cvtColor(cvimg, cvimg, cv::COLOR_BGR2RGB); // invert BGR to RGB
+
+    // ���÷��� fix to window
+    QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
+                                    cvimg.cols,
+                                    cvimg.rows,
+                                    QImage::Format_Grayscale8));
+    ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
+
 #endif
 }
 
-void MainWindow::Run(int data)
+void MainWindow::Run()
 {
-    qDebug() << "Run(data)";
+    qDebug() << "Run";
 }
 
 #if false
