@@ -22,7 +22,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     // 동작시간
-    runTime.start();
+    //runTime.start();
+    startTime = time(NULL); // 현재 시간을 받음
 
     // Set Title
     this->setWindowTitle("LPR - AI Edge Device");
@@ -120,15 +121,32 @@ MainWindow::~MainWindow()
 void MainWindow::updateProgressBar()
 {
     // Running Time
+#if false
     int nElapsedTime = runTime.elapsed();
 
     value++;
     //ui->progressBar->setValue(value%100);
     ui->progressBar->setTextVisible(true);
     ui->progressBar->setFormat(QTime::fromMSecsSinceStartOfDay(nElapsedTime).toString("hh:mm:ss"));
+#else
+    time_t curTime;
+
+    curTime = time(NULL);       // 현재 시간을 받음
+    double diff_timer = difftime(curTime, startTime);
 
 
-    //ui->runningTime->setText(QTime::fromMSecsSinceStartOfDay(nElapsedTime).toString("hh:mm:ss"));
+    int day = (int)(diff_timer/60)/60/24;
+    int hour = (int)((diff_timer/60)/60)%24;
+    int min = (int)(diff_timer/60)%60;
+    int sec = (int)diff_timer%60;
+
+    QString strElapsedTime;
+    strElapsedTime.sprintf("%02d:%02d:%02d:%02d", day, hour, min, sec);
+    ui->progressBar->setFormat(strElapsedTime);
+
+    INFO_LOG(strElapsedTime.toStdString());
+#endif
+
 }
 
 void MainWindow::updateMacAddress()
@@ -254,6 +272,9 @@ void MainWindow::updateEth1()
     {
         ui->label_eth1->setStyleSheet("QLabel { background-color : red; color : white; }");
         ui->label_eth1->setText("not found");
+    	    
+	ui->label_eth1_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
+	ui->label_eth1_conn->setText("ready...");
     }
     // 상태 정보 전송
     else
@@ -261,27 +282,26 @@ void MainWindow::updateEth1()
         ui->label_eth1->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_eth1->setText("OK");
 
-        // 접속상태 체크(Link up/down)
-        pEth1.start("sh");
-        pEth1.write("cat /sys/class/net/eth1/operstate");
-        pEth1.closeWriteChannel();
-        pEth1.waitForFinished();
-        QString output(pEth1.readAllStandardOutput());
-        cout << output.toStdString() << endl;
-        if (output.isEmpty() || output.contains("up", Qt::CaseInsensitive))     // connected
-        {
-            //ui->label_eth1_conn->show();
-            ui->label_eth1_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
-            ui->label_eth1_conn->setText("Connected");
-        }
-        else                                                                    // not connected
-        {
-            //ui->label_eth1_conn->hide();
-            ui->label_eth1_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
-            ui->label_eth1_conn->setText("ready...");
-        }
+    	pEth1.start("sh");
+    	pEth1.write("cat /sys/class/net/eth1/operstate");
+    	pEth1.closeWriteChannel();
+    	pEth1.waitForFinished();
+    	QString output(pEth1.readAllStandardOutput());
+    	cout << output.toStdString() << endl;
+    	if (output.isEmpty() || output.contains("up", Qt::CaseInsensitive))     // connected
+    	{
+    	    //ui->label_eth1_conn->show();
+    	    ui->label_eth1_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
+    	    ui->label_eth1_conn->setText("Connected");
+    	}
+    	else                                                                    // not connected
+    	{
+    	    //ui->label_eth1_conn->hide();
+    	    ui->label_eth1_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
+    	    ui->label_eth1_conn->setText("ready...");
+    	}
     }
-
+    	
     // 종료
     pEth1.close();
 }
@@ -291,8 +311,8 @@ void MainWindow::updateUsb0()
 {
     QProcess pUsb0;
     pUsb0.start("sh");
-    //pUsb0.write("lsusb | grep \"Bus 001\\\|Bus 002\"");
-    pUsb0.write("lsusb | grep \"Bus 003\\\|Bus 004\"");
+    pUsb0.write("lsusb | grep \"Bus 001\\\|Bus 002\"");
+    //pUsb0.write("lsusb | grep \"Bus 003\\\|Bus 004\"");
     pUsb0.closeWriteChannel();
     pUsb0.waitForFinished();
     QString output(pUsb0.readAllStandardOutput());

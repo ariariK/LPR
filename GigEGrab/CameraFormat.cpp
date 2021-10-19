@@ -12,6 +12,8 @@
 
 #include "CameraFormat.h"
 
+#define MIN_CAPTURE_CLK 8312000
+#define	INC_CAPTURE_CLK 88000
 CameraFormat::CameraFormat()
 {
 	nCapWidth 	= 1920;
@@ -142,18 +144,49 @@ int CameraFormat::SetFrameRateMode(bool enable)
 
 int CameraFormat::SetFrameRate(float frameRate)
 {
+	// note : 8312000(min value)
+	// 8312000 : 1.07628fps(fhd)
+	// 8312000 : 2.42131fps(hd)
+	fFrameRate = frameRate;
+	INodeMap& nodeMap = pCam->GetNodeMap();
+	CIntegerPtr ptrThroughputLimit = nodeMap.GetNode("DeviceLinkThroughputLimit");
+	if(nCapWidth == 1920 && nCapHeight == 1080)	// FHD
+	{
+		int64_t tarClk = MIN_CAPTURE_CLK + INC_CAPTURE_CLK*(28*(frameRate-1));
+
+		cout << "set to  = " << tarClk << endl;
+		
+		//ptrThroughputLimit->SetValue(MIN_CAPTURE_CLK + (INC_CAPTURE_CLK * (int)(frameRate-1)));
+		ptrThroughputLimit->SetValue(tarClk);
+	}
+	else 																				// HD
+	{
+		int64_t tarClk = MIN_CAPTURE_CLK + INC_CAPTURE_CLK*(9*(frameRate-1));
+
+		cout << "set to  = " << tarClk << endl;
+		
+		//ptrThroughputLimit->SetValue(MIN_CAPTURE_CLK + (INC_CAPTURE_CLK * (int)(frameRate-1)));
+		ptrThroughputLimit->SetValue(tarClk);
+	}
+	//cout << "DeviceLinkThroughputLimit = " << ptrThroughputLimit->GetValue() << endl;
+	cout << "DeviceLinkThroughputLimit = " << ptrThroughputLimit->GetValue() << endl;
+	cout << "Frame rate is set to " << fFrameRate << endl;
+
+#if false
 	CFloatPtr ptrFrameRate = pCam->GetNodeMap().GetNode("AcquisitionFrameRate");
 	if (!IsAvailable(ptrFrameRate) || !IsWritable(ptrFrameRate))
 	{
+		cout << "IsAvailable(ptrFrameRate) = " << IsAvailable(ptrFrameRate) << endl;
+		cout << "IsWritable(ptrFrameRate) = " << IsWritable(ptrFrameRate) << endl;
 		cout << "Unable to set Acquisition Frame Rate (node retrieval). Aborting..." << endl;
 		cout << "Frame rate is set to " << ptrFrameRate->GetValue() << endl;
 		return -1;
 	}
-
 	// Set fps
 	fFrameRate = frameRate;
 	ptrFrameRate->SetValue(fFrameRate);
 	cout << "Frame rate is set to " << fFrameRate << endl;
+#endif
 
 	return 0;
 }

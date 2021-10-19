@@ -32,7 +32,7 @@ int main(int argc, char** argv)
 
 	// Parse parameters
 	// std::ifstream is RAII, i.e. no need to call close
-  ifstream cFile ("config_lpr.txt");
+  ifstream cFile ("/oem/config_lpr.txt");
 	if (cFile.is_open())
 	{
 		string line;

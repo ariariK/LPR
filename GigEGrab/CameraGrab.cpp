@@ -76,6 +76,7 @@ int CameraGrab::SharedMemoryCreate()
 			}
 		}
 	}
+
     
   return 1;
 }
@@ -260,6 +261,7 @@ int CameraGrab::RunGrabbing()
 
 		// Grabbing loop...
 		int pack_size = 100;
+		//int pack_size = 1;
 		int64_t imageCnt = 0;
 		int64_t runningTime = 0;
 	
@@ -281,6 +283,7 @@ int CameraGrab::RunGrabbing()
 					msg = "Image incomplete: " + (string)Image::GetImageStatusDescription(pResultImage->GetImageStatus());
 					WARN_LOG(msg);
 				#endif
+					pResultImage->Release();
 					continue;
 				}
 				else
@@ -346,9 +349,10 @@ int CameraGrab::RunGrabbing()
 
 						runningTime = 0;
 					}
+					//usleep(20000);
 				}
 
-				//pResultImage->Release();
+				pResultImage->Release();
 
 				//cout << endl;
 			}

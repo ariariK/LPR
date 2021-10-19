@@ -28,6 +28,7 @@ using namespace Spinnaker::GenICam;
 #define  KEY_NUM_MQ     2345
 
 
+char buffer[MEM_SIZE_SM] = {0,};
 int MainWindow::SharedMemoryInit(void)
 {
     if((shmid = shmget((key_t)KEY_NUM_SM, 0, 0)) == -1)
@@ -151,7 +152,6 @@ void MainWindow::GetParameters()
 {
 }
 
-char buffer[MEM_SIZE_SM] = {0,};
 void MainWindow::Update()
 {
     //qDebug() << "Update";
@@ -171,7 +171,22 @@ void MainWindow::Update()
                                     cvimg.cols,
                                     cvimg.rows,
                                     QImage::Format_Grayscale8));
-    ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
+    if(picture.isNull())
+    {
+        QString qsfileName="/oem/test_data/no_signal.jpg";
+        cv::Mat img = cv::imread(qsfileName.toLocal8Bit().data());
+        cv::cvtColor(img, img, cv::COLOR_BGR2RGB); // invert BGR to RGB
+
+        QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) img.data,
+                                              img.cols,
+                                              img.rows,
+                                              QImage::Format_RGB888));
+        ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
+    }
+    else 
+    {
+        ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
+    }
 
 #endif
 }

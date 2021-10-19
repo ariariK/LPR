@@ -17,6 +17,6 @@ void Thread::run()
     {
         i++;
         emit Send(i);
-        msleep(100);
+        msleep(1000);
     }
 }
