@@ -221,6 +221,9 @@ int CameraGrab::RunGrabbing()
 
 	INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
 	INodeMap& nodeMap 				= pCam->GetNodeMap();
+	INodeMap& nodeMapStream 	= pCam->GetTLStreamNodeMap();
+	CIntegerPtr StreamNode 		= nodeMapStream.GetNode("StreamDefaultBufferCount");
+	
 
 	try
 	{
@@ -272,6 +275,7 @@ int CameraGrab::RunGrabbing()
 				system_clock::time_point start = system_clock::now();
 
 				ImagePtr pResultImage = pCam->GetNextImage();
+
 				if (pResultImage->IsIncomplete())
 				{
 					// Retrieve and print the image status description
@@ -305,17 +309,17 @@ int CameraGrab::RunGrabbing()
 					ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
 					SharedMemoryWrite(convertedImage, convertedImage->GetBufferSize());
 
+#if true
 					if (bSaveEnable) 
 					{
 						ostringstream filename;
-						filename << strSavePath << "/Grab-" << gComm.string_format("%09d", imageCnt) << ".jpg";
-						//time_t timer = time(nullptr);
-						//filename << strSavePath << "/Grab-" << timer << ".jpg";
+						//filename << strSavePath << "/Grab-" << gComm.string_format("%09d", imageCnt) << ".jpg";
+						filename << strSavePath << "/monitor.jpg";
+
 						try 
 						{
 							//ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
 							convertedImage->Save(filename.str().c_str());
-							pResultImage->Release();
 						}
 						catch (Spinnaker::Exception& e)
 						{
@@ -326,6 +330,29 @@ int CameraGrab::RunGrabbing()
 							return -1;
 						}
 					}
+#else	// for test
+					if (bSaveEnable) 
+					{
+						ostringstream filename;
+						filename << strSavePath << "/Grab-" << gComm.string_format("%09d", imageCnt) << ".jpg";
+						//time_t timer = time(nullptr);
+						//filename << strSavePath << "/Grab-" << timer << ".jpg";
+						try 
+						{
+							//ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
+							convertedImage->Save(filename.str().c_str());
+							//pResultImage->Release();
+						}
+						catch (Spinnaker::Exception& e)
+						{
+							msg = "Error: " + (string)e.what();
+							cout << msg << endl;
+
+							ERR_LOG(msg);
+							return -1;
+						}
+					}
+#endif
 					
 					imageCnt++;
 					system_clock::time_point end = system_clock::now();

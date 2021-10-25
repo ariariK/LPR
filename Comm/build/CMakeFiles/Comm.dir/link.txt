@@ -1,0 +1,1 @@
+/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/bin/aarch64-buildroot-linux-gnu-g++     CMakeFiles/Comm.dir/src/ipcs.cpp.o CMakeFiles/Comm.dir/src/socket.cpp.o CMakeFiles/Comm.dir/src/usage.cpp.o CMakeFiles/Comm.dir/src/main.cpp.o  -o Comm  -ldl -lpthread 

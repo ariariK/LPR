@@ -150,6 +150,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::GetParameters()
 {
+    capWidth    = 0;
+    capHeight   = 0;
 }
 
 void MainWindow::Update()
@@ -158,7 +160,25 @@ void MainWindow::Update()
 
 #if true    
 
-    MessageQueueRead();
+    //MessageQueueRead();
+    if (!capWidth || !capHeight)
+    {
+        for(int i=0; i<100; i++)
+        {
+            if( MessageQueueRead() > 0 ) 
+            {
+                capWidth    = msq.data.capWidth;
+                capHeight   = msq.data.capHeight;
+                break;
+            }
+            continue;
+        }
+    }
+    else
+    {
+        MessageQueueRead();
+    }
+    
     SharedMemoryRead((char *)buffer);
 
     //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());

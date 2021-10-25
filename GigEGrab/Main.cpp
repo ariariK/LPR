@@ -32,7 +32,26 @@ int main(int argc, char** argv)
 
 	// Parse parameters
 	// std::ifstream is RAII, i.e. no need to call close
-  ifstream cFile ("/oem/config_lpr.txt");
+  //ifstream cFile ("/oem/config_lpr.txt");
+	ifstream cFile;
+
+	// User Parameters
+	int res;
+	string file_cfg = "/oem/config_lpr.txt";
+	while ((res=getopt(argc, argv, "f:h")) != -1) {
+		switch(res) {
+		case 'f':   // configure file
+			file_cfg = optarg;
+		  break;
+
+		case 'h':
+      std::cout << " [Usage]: " << argv[0] << " [-h]\n"
+	              << " [-f configure file]\n";
+			break;
+		}
+	}
+
+	cFile.open(file_cfg);
 	if (cFile.is_open())
 	{
 		string line;

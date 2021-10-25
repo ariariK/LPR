@@ -139,6 +139,18 @@ int CameraFormat::SetFrameRateMode(bool enable)
 
 	cout << "Frame rate mode is set to " << bFrameRateMode << endl;
 
+#if false
+	INodeMap& sNodeMap = pCam->GetTLStreamNodeMap();
+	CIntegerPtr StreamNode = sNodeMap.GetNode("StreamDefaultBufferCount");
+	int64_t bufferCount = StreamNode->GetValue();
+	if (!IsAvailable(StreamNode) || !IsWritable(StreamNode)){
+        cout << "Unable to set StreamMode  Aborting..." << endl;
+        return -1;
+  }
+  StreamNode->SetValue(bufferCount);
+	cout << "Number of Image Buffers : " << bufferCount << endl;
+#endif
+
 	return 0;
 }
 

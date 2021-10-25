@@ -1,0 +1,3 @@
+/images/apps/LPR/Comm/build/CMakeFiles/rebuild_cache.dir
+/images/apps/LPR/Comm/build/CMakeFiles/Comm.dir
+/images/apps/LPR/Comm/build/CMakeFiles/edit_cache.dir
