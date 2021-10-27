@@ -26,6 +26,7 @@ public:
     ~MainWindow();
 
     QLabel *screen;
+    QString version;
     
 
 private slots:

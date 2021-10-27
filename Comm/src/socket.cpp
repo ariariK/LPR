@@ -24,7 +24,7 @@
 
 using namespace std;
 
-#define SKIP_SEND_IMAGE
+//#define SKIP_SEND_IMAGE
 
 CommSocket::CommSocket(string patrolID, string vehicleInfo)
 {
@@ -201,6 +201,14 @@ int CommSocket::SendPacketImage()
   int writelen;
   int fulllen, sendlen;
 
+  // 수배차량 확인
+  if(strcmp(patrolResponse.strStatusInfo, "수배차량") != 0)
+  {
+    cout << "SendPacketImage() : 비수배차량" << endl;
+    return 1;
+  }
+  cout << "SendPacketImage() : 수배차량" << endl;
+
   string fname0 = "/userdata/result/" + to_string(delFileInfo.timestamp) + "_" + std::string(delFileInfo.carNo) + "_0.jpg";
   string fname1 = "/userdata/result/" + to_string(delFileInfo.timestamp) + "_" + std::string(delFileInfo.carNo) + "_1.jpg";
 
@@ -317,13 +325,14 @@ int CommSocket::RecvPacketPatrolResponse()
   int readlen = recv(client_sockfd, (char *)&patrolResponse, sizeof(patrolResponse), 0);
   if (readlen == -1) 
   { 
-    perror("[S] recv\n"); 
+    perror("[RecvPacketPatrolResponse] recv\n"); 
     return -1; 
   }
-  printf("[S] recv : %d\n", readlen);
+  printf("[RecvPacketPatrolResponse] recv : %d\n", readlen);
   //printf("[S] buf \"%s\"\n", buf);
 
   PrintPacketPatrolInfo((char *)&patrolResponse);
+  // 차량 번호 조회를 완료한 데이터는 삭제
   GenTimeT((PFileinfo)&delFileInfo);
   delFileInfo.carNo = string(patrolResponse.strVehicleInfo);
   //printf("timestamp : %ld, car_no : %s\n", delFileInfo.timestamp, delFileInfo.carNo.c_str());

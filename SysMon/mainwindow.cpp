@@ -1,4 +1,6 @@
 ﻿#include <QProcess>
+#include <QFile>
+#include <QTextStream>
 
 #include <iostream>
 #include <sstream>
@@ -102,6 +104,37 @@ MainWindow::MainWindow(QWidget *parent)
     thDevUsb2 = new ThreadDevUsb2(this);
     thDevUsb2->start();
     connect(thDevUsb2, SIGNAL(Send()), this, SLOT(updateUsb2()));
+
+#ifdef WIN32
+#else
+    QString version("Ver. Unknown");
+    QString ver_file("/oem/.version");
+    if (QFile::exists(ver_file) == true) 
+    {
+	    QFile file(ver_file);
+    	if(!file.open(QFile::ReadOnly | QFile::Text))
+    	{
+    	    	qDebug() << " Could not open file for writing";
+    	}
+        else 
+        {
+            // To write text, we use operator<<(),
+            // which is overloaded to take
+            // a QTextStream on the left
+            // and data types (including QString) on the right
+            
+            QTextStream out(&file);
+            version = "Ver. " + out.readAll();
+            qDebug() << version;	
+            file.flush();
+            file.close();
+        }
+    }
+    else
+    {
+    }
+    ui->label_version->setText(version);
+#endif
 }
 
 MainWindow::~MainWindow()

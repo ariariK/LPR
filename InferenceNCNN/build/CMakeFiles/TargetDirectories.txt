@@ -1,0 +1,3 @@
+/images/apps/LPR/InferenceNCNN/build/CMakeFiles/rebuild_cache.dir
+/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir
+/images/apps/LPR/InferenceNCNN/build/CMakeFiles/edit_cache.dir

@@ -112,13 +112,47 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    version = "Ver. Unknown";
+    QString ver_file("/oem/.version");
+    if (QFile::exists(ver_file) == true) 
+    {
+	    QFile file(ver_file);
+    	if(!file.open(QFile::ReadOnly | QFile::Text))
+    	{
+    	    	qDebug() << " Could not open file for writing";
+    	}
+        else 
+        {
+            // To write text, we use operator<<(),
+            // which is overloaded to take
+            // a QTextStream on the left
+            // and data types (including QString) on the right
+            
+            QTextStream out(&file);
+            version = "Ver. " + out.readAll();
+            version.chop(1);
+            qDebug() << version;	
+            file.flush();
+            file.close();
+        }
+    }
+    else
+    {
+    }
+
 #if true
     setStyleSheet("QWidget#MainWindow { background-color : black; color : white; }");
     setAutoFillBackground( true );
     statusBar()->hide();
 
-    ui->screen->setStyleSheet("QLabel { background-color : black; color : white; }");
+    ui->screen->setStyleSheet("QLabel { background-color : black; color : red; }");
     //ui->screen->setStyleSheet("QLabel { background-color : blue; color : white; }");
+
+    // font
+    QFont font = ui->screen->font();
+    font.setPointSize(20);
+    font.setBold(true);
+    ui->screen->setFont(font);
 #endif
 
     GetParameters();
@@ -183,6 +217,8 @@ void MainWindow::Update()
 
     //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
     Mat cvimg = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
+    //cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
+    cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 4);
 
     //cv::cvtColor(cvimg, cvimg, cv::COLOR_BGR2RGB); // invert BGR to RGB
 
@@ -196,6 +232,8 @@ void MainWindow::Update()
         QString qsfileName="/oem/test_data/no_signal.jpg";
         cv::Mat img = cv::imread(qsfileName.toLocal8Bit().data());
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB); // invert BGR to RGB
+        //cv::putText(img, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
+        cv::putText(img, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 4);
 
         QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) img.data,
                                               img.cols,
@@ -205,8 +243,10 @@ void MainWindow::Update()
     }
     else 
     {
+        
         ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
     }
+    
 
 #endif
 }
