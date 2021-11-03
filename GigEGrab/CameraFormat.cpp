@@ -202,3 +202,105 @@ int CameraFormat::SetFrameRate(float frameRate)
 
 	return 0;
 }
+
+// GPIO
+int CameraFormat::SetGpioUserMode()
+{
+	SetLineSelector();
+	SetLineMode();
+	SetLineSource();
+	SetUserOutputSelector();
+	SetUserOutputValue(false);
+
+	return 1;
+}
+
+int CameraFormat::SetLineSelector()
+{
+	// It retrieves GenICam nodemap
+  INodeMap& nodeMap = pCam->GetNodeMap();
+  
+	// This is for Serial port Transmit settings
+	CEnumerationPtr ptrLineSelector = nodeMap.GetNode("LineSelector");
+	if (!IsAvailable(ptrLineSelector) || !IsWritable(ptrLineSelector))
+	{
+			cout << "Unable to set Line Selector. Aborting..." << endl << endl;
+			return -1;
+	}
+	ptrLineSelector->SetIntValue(1); // line 1 is selected(Line1)
+
+	cout << endl << "SetLineSelector() : ptrLineSelector->GetIntValue() = " << ptrLineSelector->GetIntValue() << endl;
+	
+	return 1;
+}
+
+
+int CameraFormat::SetLineMode()
+{
+	// It retrieves GenICam nodemap
+  INodeMap& nodeMap = pCam->GetNodeMap();
+
+	CEnumerationPtr ptrLineMode = nodeMap.GetNode("LineMode");
+	if (!IsAvailable(ptrLineMode) || !IsWritable(ptrLineMode))
+	{
+			cout << "Unable to set Line Mode. Aborting..." << endl << endl;
+			return -1;
+	}
+	ptrLineMode->SetIntValue(1); // output is selected(Output)
+
+	cout << endl << "SetLineMode() : ptrLineMode->GetIntValue() = " << ptrLineMode->GetIntValue() << endl;
+	
+	return 1;
+}
+
+int CameraFormat::SetLineSource()
+{
+	// It retrieves GenICam nodemap
+  INodeMap& nodeMap = pCam->GetNodeMap();
+
+	CEnumerationPtr ptrLineSource = nodeMap.GetNode("LineSource");
+	if (!IsAvailable(ptrLineSource) || !IsWritable(ptrLineSource))
+	{
+			cout << "Unable to set Line Source. Aborting..." << endl << endl;
+			return -1;
+	}
+	ptrLineSource->SetIntValue(2); // User Output1 0 is selected(UserOutput1)
+
+	cout << endl << "SetLineSource() : ptrLineSource->GetIntValue() = " << ptrLineSource->GetIntValue() << endl;
+	
+	return 1;
+}
+
+int CameraFormat::SetUserOutputSelector()
+{
+	// It retrieves GenICam nodemap
+  INodeMap& nodeMap = pCam->GetNodeMap();
+
+	CEnumerationPtr ptrUserOutputSource = nodeMap.GetNode("UserOutputSelector");
+	if (!IsAvailable(ptrUserOutputSource) || !IsWritable(ptrUserOutputSource))
+	{
+			cout << "Unable to set User Output Source. Aborting..." << endl << endl;
+			return -1;
+	}
+	ptrUserOutputSource->SetIntValue(1); // User Output Source 1 is selected(UserOutputValue)
+
+	cout << endl << "SetUserOutputSelector() : ptrUserOutputSource->GetIntValue() = " << ptrUserOutputSource->GetIntValue() << endl;
+
+	return 1;
+}
+
+int CameraFormat::SetUserOutputValue(bool value)
+{
+	CBooleanPtr ptrUserOutputValue = pCam->GetNodeMap().GetNode("UserOutputValue");
+	if (!IsAvailable(ptrUserOutputValue) || !IsWritable(ptrUserOutputValue))
+	{
+			cout << "Unable to set User Output Value. Aborting..." << endl << endl;
+		return -1;
+	}
+
+	ptrUserOutputValue->SetValue(value);
+
+	cout << endl << "SetUserOutputValue() : ptrUserOutputValue->GetValue() = " << ptrUserOutputValue->GetValue() << endl;
+
+	return 1;
+}

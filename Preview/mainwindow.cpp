@@ -17,10 +17,21 @@ using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+#include <syslog.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
 #include <errno.h>
+
+//#define INFO_LOG(fmt, ...)       { syslog(LOG_INFO, "[Error : %s][__LINE__ : %d] %s : %s",__FILE__, __LINE__, __FUNCTION__, fmt.c_str()); }
+#define EMERG_LOG(fmt, ...)     { syslog(LOG_EMERG,   "[Emergency][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
+#define ALERT_LOG(fmt, ...)     { syslog(LOG_ALERT,   "[Alert][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
+#define CRIT_LOG(fmt, ...)      { syslog(LOG_CRIT,    "[Critical][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
+#define ERR_LOG(fmt, ...)       { syslog(LOG_ERR,     "[Error][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
+#define WARN_LOG(fmt, ...)      { syslog(LOG_WARNING, "[Warning][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
+#define NOTICE_LOG(fmt, ...)    { syslog(LOG_NOTICE,  "[Notice][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
+#define INFO_LOG(fmt, ...)      { syslog(LOG_INFO,    "[Info][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
+#define DEBUG_LOG(fmt, ...)     { syslog(LOG_DEBUG,   "[Debug][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
 
 #define  KEY_NUM_SM		1234
 #define  MEM_SIZE_SM	512*4096
@@ -82,9 +93,9 @@ int MainWindow::MessageQueueRead()
         if (errno != ENOMSG)
         {
             printf("msgrcv failed : %d\n", errno);
+            printf("[preview:%d]capWidth : %d, capHeight :%d\n", msqid, msq.data.capWidth, msq.data.capHeight);
             return -1;
         }
-        return 1;
     }
     //printf("name : %d, age :%d\n", msq.data.capWidth, msq.data.capHeight);
 
@@ -113,7 +124,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     version = "Ver. Unknown";
-    QString ver_file("/oem/.version");
+    QString ver_file("/etc/.version");
     if (QFile::exists(ver_file) == true) 
     {
 	    QFile file(ver_file);
@@ -156,8 +167,14 @@ MainWindow::MainWindow(QWidget *parent)
 #endif
 
     GetParameters();
-    SharedMemoryInit();
-    MessageQueueInit();
+    if (SharedMemoryInit() < 0)
+    {
+        fprintf(stderr, "[Error!!!]SharedMemoryInit()\n");
+    }
+    if (MessageQueueInit() < 0)
+    {
+        fprintf(stderr, "[Error!!!]MessageQueueInit()\n");
+    }
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(Update()));
@@ -193,8 +210,6 @@ void MainWindow::Update()
     //qDebug() << "Update";
 
 #if true    
-
-    //MessageQueueRead();
     if (!capWidth || !capHeight)
     {
         for(int i=0; i<100; i++)
@@ -205,50 +220,59 @@ void MainWindow::Update()
                 capHeight   = msq.data.capHeight;
                 break;
             }
+            usleep(100000);
+            MessageQueueInit();
             continue;
         }
     }
-    else
-    {
-        MessageQueueRead();
-    }
+
+    msg.sprintf("%d, %d, %d, %d\n", msq.data.capWidth, msq.data.capHeight, capWidth, capHeight);
+    INFO_LOG(msg.toStdString());
+    //fprintf(stderr, "%d, %d, %d, %d\n", msq.data.capWidth, msq.data.capHeight, capWidth, capHeight);
     
-    SharedMemoryRead((char *)buffer);
-
-    //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
-    Mat cvimg = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
-    //cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
-    cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 4);
-
-    //cv::cvtColor(cvimg, cvimg, cv::COLOR_BGR2RGB); // invert BGR to RGB
-
-    // ���÷��� fix to window
-    QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
-                                    cvimg.cols,
-                                    cvimg.rows,
-                                    QImage::Format_Grayscale8));
-    if(picture.isNull())
+    if (capWidth && capHeight)
     {
-        QString qsfileName="/oem/test_data/no_signal.jpg";
-        cv::Mat img = cv::imread(qsfileName.toLocal8Bit().data());
-        cv::cvtColor(img, img, cv::COLOR_BGR2RGB); // invert BGR to RGB
-        //cv::putText(img, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
-        cv::putText(img, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 4);
+        if (MessageQueueRead() < 0)
+        {
+            MessageQueueInit();
+            fprintf(stderr, "[Error!!!]MessageQueueRead()\n");    
+        }
+        if (SharedMemoryRead((char *)buffer) < 0)
+        {
+            SharedMemoryInit();
+            fprintf(stderr, "[Error!!!]SharedMemoryRead()\n");  
+        }
 
-        QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) img.data,
-                                              img.cols,
-                                              img.rows,
-                                              QImage::Format_RGB888));
+        //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
+        Mat cvimg = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
+        //cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
+        cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
+
+        //fprintf(stderr, "%d, %d\n", cvimg.cols, cvimg.rows);
+
+        // ���÷��� fix to window
+        QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
+                                        cvimg.cols,
+                                        cvimg.rows,
+                                        QImage::Format_Grayscale8));
         ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
     }
     else 
     {
-        
+        // Defalut Image Display
+        QString qsfileName="/oem/test_data/no_signal.jpg";
+        cv::Mat img = cv::imread(qsfileName.toLocal8Bit().data());
+        cv::cvtColor(img, img, cv::COLOR_BGR2RGB); // invert BGR to RGB
+        cv::putText(img, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 4);
+
+        QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) img.data,
+                                            img.cols,
+                                            img.rows,
+                                            QImage::Format_RGB888));
         ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
     }
-    
-
 #endif
+
 }
 
 void MainWindow::Run()

@@ -213,6 +213,33 @@ int CameraGrab::SetSavePath(string path)
 	return 0;
 }
 
+int CameraGrab::SetGainValue(float value)
+{
+	fGainValue = value;
+
+	return 0;
+}
+
+int	CameraGrab::CtrlUserModeGpio()
+{
+	// get Gain
+	// Float node
+	CFloatPtr ptrGain = pCam->GetNodeMap().GetNode("Gain");
+	//cout << "current gain value = " << ptrGain->GetValue() << " dB" << endl;
+
+	CBooleanPtr ptrUserOutputValue = pCam->GetNodeMap().GetNode("UserOutputValue");
+	if (ptrGain->GetValue() < (float)fGainValue) 	// Day
+	{
+		ptrUserOutputValue->SetValue(false);
+	}
+	else 														// Night
+	{
+		ptrUserOutputValue->SetValue(true);
+	}
+	
+	return 0;
+}
+
 int CameraGrab::RunGrabbing()
 {
 	int result = 0;
@@ -296,6 +323,10 @@ int CameraGrab::RunGrabbing()
 					//
 					const size_t width = pResultImage->GetWidth();
 					const size_t height = pResultImage->GetHeight();
+
+					// GPIO
+					CtrlUserModeGpio();
+
 
 					// Update
 					if (msq.data.capWidth != (int)width || msq.data.capHeight != (int)height || MessageQueueQNum() < 1)

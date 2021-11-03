@@ -99,9 +99,9 @@ int MessageQueueRead()
         if (errno != ENOMSG)
         {
             printf("msgrcv failed : %d\n", errno);
+            printf("[inference:%d]capWidth : %d, capHeight :%d\n", msqid, msq.data.capWidth, msq.data.capHeight);
             return -1;
         }
-        return 1;
     }
     //printf("name : %d, age :%d\n", msq.data.capWidth, msq.data.capHeight);
 
@@ -205,7 +205,7 @@ void* thread_ldetect(void* arg)
         // clock start
         //start = clock();
 
-#if false
+#if true
         // get image
         if (!capWidth || !capHeight)
         {
@@ -214,22 +214,31 @@ void* thread_ldetect(void* arg)
                 capWidth    = msq.data.capWidth;
                 capHeight   = msq.data.capHeight;
             }
-            usleep(100000);
-            fprintf(stderr, "Wait... MessageQueue(resolution info)\n");
-            continue;
+            else 
+            {
+                usleep(100000);
+                MessageQueueInit();
+                fprintf(stderr, "Wait... MessageQueue(resolution info)\n");
+                continue;
+            }
         }
-        else
+
+        if (MessageQueueRead() < 0)
         {
-            MessageQueueRead();
+            MessageQueueInit();
+            fprintf(stderr, "[Error!!!]MessageQueueRead()\n");    
         }
-        //fprintf(stderr, "msq.data.capHeight=%d, msq.data.capWidth=%d\n", msq.data.capHeight, msq.data.capWidth);
-        SharedMemoryRead((char *)buffer);
+        if (SharedMemoryRead((char *)buffer) < 0)
+        {
+            SharedMemoryInit();
+            fprintf(stderr, "[Error!!!]SharedMemoryRead()\n");  
+        }
         //frame = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
         cv::Mat img = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
         cvtColor(img, frame, cv::COLOR_GRAY2RGB);
 #endif        
         // from image(for test)
-        frame = cv::imread("/oem/test_data/images.jpg");
+        //frame = cv::imread("/oem/test_data/images.jpg");
 
         // run detect
         start = clock();
@@ -398,16 +407,25 @@ void* thread_lpr(void* arg)
                 capWidth    = msq.data.capWidth;
                 capHeight   = msq.data.capHeight;
             }
-            usleep(100000);
-            fprintf(stderr, "Wait... MessageQueue(resolution info)\n");
-            continue;
+            else 
+            {
+                usleep(100000);
+                MessageQueueInit();
+                fprintf(stderr, "Wait... MessageQueue(resolution info)\n");
+                continue;
+            }
         }
-        else
+
+        if (MessageQueueRead() < 0)
         {
-            MessageQueueRead();
+            MessageQueueInit();
+            fprintf(stderr, "[Error!!!]MessageQueueRead()\n");    
         }
-        //fprintf(stderr, "msq.data.capHeight=%d, msq.data.capWidth=%d\n", msq.data.capHeight, msq.data.capWidth);
-        SharedMemoryRead((char *)buffer);
+        if (SharedMemoryRead((char *)buffer) < 0)
+        {
+            SharedMemoryInit();
+            fprintf(stderr, "[Error!!!]SharedMemoryRead()\n");  
+        }
         //frame = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
         cv::Mat img = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
         cvtColor(img, frame, cv::COLOR_GRAY2RGB);

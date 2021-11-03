@@ -75,6 +75,14 @@ public:
 	int			SetFrameRate(float frameRate);
 	float		GetFrameRate() { return fFrameRate; }
 
+	// GPIO
+	int 	SetGpioUserMode();
+	int		SetLineSelector();
+	int 	SetLineMode();
+	int		SetLineSource();
+	int 	SetUserOutputSelector();
+	int		SetUserOutputValue(bool value);
+
 private:
 
 protected:

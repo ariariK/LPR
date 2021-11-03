@@ -70,6 +70,8 @@ public:
 	int		SetFrameRateMode(bool enable);
 	int		SetFrameRate(float rate);
 
+	int 	SetGpioUserMode(float value);
+
 	int		DoConnection();
 	int 	DoDisconnection();
 

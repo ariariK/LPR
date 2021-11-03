@@ -26,6 +26,7 @@ int main(int argc, char** argv)
 	bool bFrameRateMode = GIGE_CAMERA_FRAME_RATE_ENABLE ? true : false;
 	float fFrameRate		= GIGE_CAMERA_FRAME_RATE;
 	bool bSaveEnable		= false;
+	float fNightGain		= 20.0;
 	string savePath;
 
 	openlog("[LPR-FLIR]", LOG_CONS, LOG_USER);
@@ -96,6 +97,10 @@ int main(int argc, char** argv)
 			{
 				fFrameRate = stof(value);
 			}
+			else if (name.compare("nightGain") == 0)
+			{
+				fNightGain = stof(value);
+			}
 			else if (name.compare("saveEnable") == 0)
 			{
 				bSaveEnable = stoi(value) ? true : false;
@@ -146,6 +151,8 @@ int main(int argc, char** argv)
 
 	pCamMan->SetFrameRateMode(bFrameRateMode);
 	pCamMan->SetFrameRate(fFrameRate);
+
+	pCamMan->SetGpioUserMode(fNightGain);
 
 	// Running Grabbing
 	pCamMan->SetSaveEnable(bSaveEnable);

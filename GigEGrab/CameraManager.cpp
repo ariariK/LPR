@@ -193,6 +193,13 @@ int CameraManager::SetFrameRate(float frameRate)
 	return 0;
 }
 
+int CameraManager::SetGpioUserMode(float value)
+{
+	pCamFormat->SetGpioUserMode();
+	pCamGrab->SetGainValue(value);
+	return 0;
+}
+
 int CameraManager::DoConnection()
 {
 	return 0;

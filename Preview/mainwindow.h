@@ -27,6 +27,7 @@ public:
 
     QLabel *screen;
     QString version;
+    QString msg;
     
 
 private slots:

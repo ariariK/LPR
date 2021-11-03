@@ -108,7 +108,7 @@ MainWindow::MainWindow(QWidget *parent)
 #ifdef WIN32
 #else
     QString version("Ver. Unknown");
-    QString ver_file("/oem/.version");
+    QString ver_file("/etc/.version");
     if (QFile::exists(ver_file) == true) 
     {
 	    QFile file(ver_file);
