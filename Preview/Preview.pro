@@ -11,11 +11,13 @@ CONFIG += c++11
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    threadPreview.cpp
+    threadPreview.cpp \
+    ipcs.cpp
 
 HEADERS += \
     mainwindow.h \
-    threadPreview.h
+    threadPreview.h \
+    ipcs.h
 
 FORMS += \
     mainwindow.ui

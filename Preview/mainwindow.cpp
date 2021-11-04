@@ -16,106 +16,9 @@ using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 
-///////////////////////////////////////////////////////////////////////////////////////////
-#include <syslog.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/msg.h>
-#include <errno.h>
-
-//#define INFO_LOG(fmt, ...)       { syslog(LOG_INFO, "[Error : %s][__LINE__ : %d] %s : %s",__FILE__, __LINE__, __FUNCTION__, fmt.c_str()); }
-#define EMERG_LOG(fmt, ...)     { syslog(LOG_EMERG,   "[Emergency][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-#define ALERT_LOG(fmt, ...)     { syslog(LOG_ALERT,   "[Alert][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-#define CRIT_LOG(fmt, ...)      { syslog(LOG_CRIT,    "[Critical][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-#define ERR_LOG(fmt, ...)       { syslog(LOG_ERR,     "[Error][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-#define WARN_LOG(fmt, ...)      { syslog(LOG_WARNING, "[Warning][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-#define NOTICE_LOG(fmt, ...)    { syslog(LOG_NOTICE,  "[Notice][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-#define INFO_LOG(fmt, ...)      { syslog(LOG_INFO,    "[Info][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-#define DEBUG_LOG(fmt, ...)     { syslog(LOG_DEBUG,   "[Debug][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-
-#define  KEY_NUM_SM		1234
-#define  MEM_SIZE_SM	512*4096
-
-#define  KEY_NUM_MQ     2345
-
-
-char buffer[MEM_SIZE_SM] = {0,};
-int MainWindow::SharedMemoryInit(void)
-{
-    if((shmid = shmget((key_t)KEY_NUM_SM, 0, 0)) == -1)
-    {
-        perror("Shmid failed");
-
-        return -1;
-    }
-
-    return 1;
-}
-
-int MainWindow::SharedMemoryRead(char *sMemory)
-{
-    void *shmaddr;
-    
-    if((shmaddr = shmat(shmid, (void *)0, 0)) == (void *)-1)
-    {
-        perror("Shmat failed");
-        return -1;
-    }
-
-    memcpy(sMemory, (char *)shmaddr, MEM_SIZE_SM);
-    
-    if(shmdt(shmaddr) == -1)
-    {
-        perror("Shmdt failed");
-        return -1;
-    }
-    
-    return 0;
-}
-
-int MainWindow::MessageQueueInit()
-{
-    //받아오는 쪽의 msqid얻어오고
-    if ((msqid=msgget((key_t)KEY_NUM_MQ, IPC_CREAT|0666)) == -1)
-    {
-        perror("msgget failed\n");
-        return -1;
-    }
-
-    return 1;
-}
-
-int MainWindow::MessageQueueRead()
-{
-    //if(msgrcv(msqid, &msq, sizeof(struct real_data), 0, 0)==-1){
-    if (msgrcv(msqid, &msq, sizeof(struct real_data), 0, IPC_NOWAIT) == -1)
-    {
-        if (errno != ENOMSG)
-        {
-            printf("msgrcv failed : %d\n", errno);
-            printf("[preview:%d]capWidth : %d, capHeight :%d\n", msqid, msq.data.capWidth, msq.data.capHeight);
-            return -1;
-        }
-    }
-    //printf("name : %d, age :%d\n", msq.data.capWidth, msq.data.capHeight);
-
-    return 1;
-}
-
-int MainWindow::MessageQueueFree()
-{
-    if (msgctl(msqid, IPC_RMID, NULL)==-1)
-    {
-        perror("MessageQueueFree() : msgctl failed\n");
-        return -1;
-    }
-
-	return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
-
-//ImagePtr convertedImage = NULL;
+#define IPC_SM  0
+#define IPC_MQ  1
+#define IPC_MODE IPC_MQ
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -165,16 +68,19 @@ MainWindow::MainWindow(QWidget *parent)
     font.setBold(true);
     ui->screen->setFont(font);
 #endif
-
+    
     GetParameters();
-    if (SharedMemoryInit() < 0)
-    {
-        fprintf(stderr, "[Error!!!]SharedMemoryInit()\n");
-    }
-    if (MessageQueueInit() < 0)
-    {
-        fprintf(stderr, "[Error!!!]MessageQueueInit()\n");
-    }
+    
+    Sm_Grab = new Ipcs(KEY_NUM_SM, MEM_SIZE_SM);
+    Sm_Grab->SharedMemoryInit();
+#if (IPC_MODE == IPC_SM)    
+    Sm_Res = new Ipcs(KEY_NUM_SM_RES, MEM_SIZE_SM_RES);
+    Sm_Res->SharedMemoryInit();
+#elif (IPC_MODE == IPC_MQ)
+	Mq_Grab	= new Ipcs(KEY_NUM_MQ_GRAB, 0);
+    Mq_Grab->MessageQueueInit();
+#else
+#endif
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(Update()));
@@ -196,6 +102,13 @@ MainWindow::~MainWindow()
     delete threadPreview;
 #endif
 
+    SAFE_DELETE(Sm_Grab);
+#if (IPC_MODE == IPC_SM)    
+    SAFE_DELETE(Sm_Res);
+#elif (IPC_MODE == IPC_MQ)    
+    SAFE_DELETE(Mq_Grab);
+#else
+#endif
     delete ui;
 }
 
@@ -209,46 +122,58 @@ void MainWindow::Update()
 {
     //qDebug() << "Update";
 
-#if true    
+#if (IPC_MODE == IPC_SM)
+    Sm_Res->SharedMemoryRead((char *)&st_grab);
+    capWidth    = st_grab.capWidth;
+    capHeight   = st_grab.capHeight;
+    msg.sprintf("%d, %d, %d, %d\n", st_grab.capWidth, st_grab.capHeight, capWidth, capHeight);
+    INFO_LOG(msg.toStdString());
+#elif (IPC_MODE == IPC_MQ)
     if (!capWidth || !capHeight)
     {
-        for(int i=0; i<100; i++)
+        for(int i=0; i<10; i++)
         {
-            if( MessageQueueRead() > 0 ) 
+            if( Mq_Grab->MessageQueueRead((char*)&msq) > 0 )     // non-blocking mode(IPC_NOWAIT)
             {
                 capWidth    = msq.data.capWidth;
                 capHeight   = msq.data.capHeight;
                 break;
             }
             usleep(100000);
-            MessageQueueInit();
+            Mq_Grab->MessageQueueInit();
             continue;
         }
+        msg.sprintf("%d, %d, %d, %d\n", msq.data.capWidth, msq.data.capHeight, capWidth, capHeight);
+        INFO_LOG(msg.toStdString());
     }
+#else
+#endif
 
-    msg.sprintf("%d, %d, %d, %d\n", msq.data.capWidth, msq.data.capHeight, capWidth, capHeight);
-    INFO_LOG(msg.toStdString());
-    //fprintf(stderr, "%d, %d, %d, %d\n", msq.data.capWidth, msq.data.capHeight, capWidth, capHeight);
     
     if (capWidth && capHeight)
     {
-        if (MessageQueueRead() < 0)
+#if (IPC_MODE == IPC_SM)
+#elif (IPC_MODE == IPC_MQ)
+        if (Mq_Grab->MessageQueueRead((char*)&msq, 0) < 0)      // blocking mode(0)
         {
-            MessageQueueInit();
+            capWidth = 0;
+            capHeight = 0;
             fprintf(stderr, "[Error!!!]MessageQueueRead()\n");    
         }
-        if (SharedMemoryRead((char *)buffer) < 0)
+#else
+#endif
+
+        // Read Image data
+        if (Sm_Grab->SharedMemoryRead((char *)buffer) < 0)
         {
-            SharedMemoryInit();
+            Sm_Grab->SharedMemoryInit();
             fprintf(stderr, "[Error!!!]SharedMemoryRead()\n");  
         }
 
         //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
-        Mat cvimg = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
+        Mat cvimg = cv::Mat(capHeight, capWidth, CV_8UC1, (char *)buffer);
         //cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
         cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
-
-        //fprintf(stderr, "%d, %d\n", cvimg.cols, cvimg.rows);
 
         // ���÷��� fix to window
         QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
@@ -271,8 +196,6 @@ void MainWindow::Update()
                                             QImage::Format_RGB888));
         ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
     }
-#endif
-
 }
 
 void MainWindow::Run()

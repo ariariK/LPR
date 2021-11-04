@@ -48,6 +48,7 @@ add_executable( InferenceNCNN
                 src/lpr_demo/l_ocr.cpp
                 src/lpr_demo/l_detect.cpp
                 src/lpr_demo/utils.cpp
+                src/ipcs.cpp
                 src/main.cpp
                 )
 target_link_libraries(InferenceNCNN dl pthread ${LIBS_LPR} ${LIBS_TF} ${LIBS_OPENCV})

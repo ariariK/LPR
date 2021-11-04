@@ -82,6 +82,7 @@ public:
 	int		SetLineSource();
 	int 	SetUserOutputSelector();
 	int		SetUserOutputValue(bool value);
+	int 	Set3_3Voltage(bool value);
 
 private:
 

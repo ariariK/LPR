@@ -123,6 +123,33 @@ InferenceNCNN/fast:
 	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/build
 .PHONY : InferenceNCNN/fast
 
+src/ipcs.o: src/ipcs.cpp.o
+
+.PHONY : src/ipcs.o
+
+# target to build an object file
+src/ipcs.cpp.o:
+	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.o
+.PHONY : src/ipcs.cpp.o
+
+src/ipcs.i: src/ipcs.cpp.i
+
+.PHONY : src/ipcs.i
+
+# target to preprocess a source file
+src/ipcs.cpp.i:
+	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.i
+.PHONY : src/ipcs.cpp.i
+
+src/ipcs.s: src/ipcs.cpp.s
+
+.PHONY : src/ipcs.s
+
+# target to generate assembly for a file
+src/ipcs.cpp.s:
+	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.s
+.PHONY : src/ipcs.cpp.s
+
 src/lpr_demo/l_detect.o: src/lpr_demo/l_detect.cpp.o
 
 .PHONY : src/lpr_demo/l_detect.o
@@ -240,6 +267,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... InferenceNCNN"
 	@echo "... edit_cache"
+	@echo "... src/ipcs.o"
+	@echo "... src/ipcs.i"
+	@echo "... src/ipcs.s"
 	@echo "... src/lpr_demo/l_detect.o"
 	@echo "... src/lpr_demo/l_detect.i"
 	@echo "... src/lpr_demo/l_detect.s"

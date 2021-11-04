@@ -4,6 +4,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
+  "/images/apps/LPR/InferenceNCNN/src/ipcs.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.o"
   "/images/apps/LPR/InferenceNCNN/src/lpr_demo/l_detect.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_detect.cpp.o"
   "/images/apps/LPR/InferenceNCNN/src/lpr_demo/l_ocr.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_ocr.cpp.o"
   "/images/apps/LPR/InferenceNCNN/src/lpr_demo/utils.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/lpr_demo/utils.cpp.o"

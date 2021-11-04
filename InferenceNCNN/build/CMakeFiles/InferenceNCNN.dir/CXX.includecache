@@ -220,6 +220,26 @@ new
 vulkan/vulkan.h
 -
 
+/images/apps/LPR/InferenceNCNN/src/Typedef.h
+syslog.h
+-
+stdio.h
+-
+string
+-
+cstring
+-
+
+/images/apps/LPR/InferenceNCNN/src/ipcs.h
+Typedef.h
+/images/apps/LPR/InferenceNCNN/src/Typedef.h
+sys/ipc.h
+-
+sys/shm.h
+-
+sys/msg.h
+-
+
 /images/apps/LPR/InferenceNCNN/src/main.cpp
 inference_ncnn/l_ocr.h
 /images/apps/LPR/InferenceNCNN/src/inference_ncnn/l_ocr.h
@@ -227,6 +247,8 @@ inference_ncnn/l_detect.h
 /images/apps/LPR/InferenceNCNN/src/inference_ncnn/l_detect.h
 inference_ncnn/utils.h
 /images/apps/LPR/InferenceNCNN/src/inference_ncnn/utils.h
+ipcs.h
+/images/apps/LPR/InferenceNCNN/src/ipcs.h
 opencv2/opencv.hpp
 /images/apps/LPR/InferenceNCNN/src/opencv2/opencv.hpp
 time.h
@@ -251,14 +273,6 @@ pthread.h
 -
 queue
 -
-sys/ipc.h
--
-sys/shm.h
--
-sys/msg.h
--
-errno.h
--
 sys/time.h
 -
 
@@ -269,12 +283,6 @@ stddef.h
 -
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/bitsperlong.h
-
-/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/errno-base.h
-
-/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/errno.h
-asm-generic/errno-base.h
--
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/int-ll64.h
 asm/bitsperlong.h
@@ -290,10 +298,6 @@ asm-generic/int-ll64.h
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm/bitsperlong.h
 asm-generic/bitsperlong.h
--
-
-/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm/errno.h
-asm-generic/errno.h
 -
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm/posix_types.h
@@ -322,10 +326,6 @@ bits/types.h
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/environments.h
 bits/wordsize.h
--
-
-/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/errno.h
-linux/errno.h
 -
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/floatn-common.h
@@ -476,6 +476,12 @@ bits/strings_fortified.h
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/sys_errlist.h
 
+/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/syslog-ldbl.h
+
+/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/syslog-path.h
+
+/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/syslog.h
+
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/sysmacros.h
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/thread-shared-types.h
@@ -545,8 +551,6 @@ bits/types.h
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/types/cookie_io_functions_t.h
 bits/types.h
 -
-
-/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/types/error_t.h
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/types/locale_t.h
 bits/types/__locale_t.h
@@ -632,14 +636,6 @@ bits/byteswap.h
 bits/uintn-identity.h
 -
 
-/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/errno.h
-features.h
--
-bits/errno.h
--
-bits/types/error_t.h
--
-
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/features.h
 stdc-predef.h
 -
@@ -668,10 +664,6 @@ bits/posix1_lim.h
 bits/posix2_lim.h
 -
 bits/xopen_lim.h
--
-
-/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/linux/errno.h
-asm/errno.h
 -
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/linux/kernel.h
@@ -2186,6 +2178,18 @@ features.h
 linux/kernel.h
 -
 
+/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/sys/syslog.h
+features.h
+-
+stdarg.h
+-
+bits/syslog-path.h
+-
+bits/syslog.h
+-
+bits/syslog-ldbl.h
+-
+
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/sys/sysmacros.h
 features.h
 -
@@ -2230,6 +2234,10 @@ sys/select.h
 sys/sysmacros.h
 -
 bits/pthreadtypes.h
+-
+
+/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/syslog.h
+sys/syslog.h
 -
 
 /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/time.h

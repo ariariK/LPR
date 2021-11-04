@@ -23,148 +23,6 @@
 using namespace std;
 using namespace chrono;
 
- 
-///////////////////////////////////////////////////////////////////////////////////////////
-#define  KEY_NUM_SM		1234
-#define  MEM_SIZE_SM	512*4096
-
-#define  KEY_NUM_MQ   2345
-
-int CameraGrab::SharedMemoryFree(void)
-{
-	if(shmctl(shmid, IPC_RMID, 0) == -1) 
-	{
-		msg = "Shmctl failed";
-		ERR_LOG(msg);
-
-		return -1;
-	}
-
-	msg = "Shared memory end";
-	INFO_LOG(msg);
-
-	return 1;
-}
-
-int CameraGrab::SharedMemoryCreate()
-{
-	msg = "SharedMemoryCreate()";
-	INFO_LOG(msg);
-
-	if ((shmid = shmget((key_t)KEY_NUM_SM, MEM_SIZE_SM, IPC_CREAT| IPC_EXCL | 0666)) == -1) 
-	{
-		msg = "There was shared memory";
-		INFO_LOG(msg);
-
-		shmid = shmget((key_t)KEY_NUM_SM, MEM_SIZE_SM, IPC_CREAT| 0666);
-		if(shmid == -1)
-		{
-			msg = "[0] Shared memory create fail";
-			ERR_LOG(msg);
-
-			return -1;
-		}
-		else
-		{
-			shmid = shmget((key_t)KEY_NUM_SM, MEM_SIZE_SM, IPC_CREAT| 0666);
-			if(shmid == -1)
-			{
-				msg = "[1] Shared memory create fail";
-				ERR_LOG(msg);
-
-				return -1;
-			}
-		}
-	}
-
-    
-  return 1;
-}
-
-int CameraGrab::SharedMemoryWrite(ImagePtr shareddata, int size)
-{
-	void *shmaddr;
-	if(size > MEM_SIZE_SM)
-	{
-		msg = "Shared memory size over";
-		ERR_LOG(msg);
-
-		return -1;
-	}
-
-	if((shmaddr = shmat(shmid, (void *)0, 0)) == (void *)-1) 
-	{
-		msg = "Shmat failed";
-		ERR_LOG(msg);
-
-		return -1;
-	}
-
-	memcpy((char *)shmaddr, shareddata->GetData(), size);
-
-	if(shmdt(shmaddr) == -1) 
-	{
-		msg = "Shmdt failed";
-		ERR_LOG(msg);
-		return -1;
-	}
-
-	return 1;
-}
-
-int CameraGrab::MessageQueueCreate()
-{
-	// Get Message Queue ID
-	if ((msqid = msgget((key_t)KEY_NUM_MQ, IPC_CREAT|0666))==-1)
-	{
-		msg = "MessageQueueCreate() : msgget failed";
-		ERR_LOG(msg);
-
-		return -1;
-	}
-
-	return 1;
-}
-
-int CameraGrab::MessageQueueQNum()
-{
-	struct msqid_ds msqds;
-	if (msgctl(msqid, IPC_STAT, (struct msqid_ds*)&msqds)==-1)
-	{
-		return -1;
-	}
-	//printf("msqds = %d, %d\n", msqds.msg_qnum, msqds.msg_cbytes);
-	return msqds.msg_qnum;
-}
-
-int CameraGrab::MessageQueueWrite()
-{
-	//if (msgsnd(msqid, &msq, sizeof(struct real_data), 0)==-1)						// blocking
-	if (msgsnd(msqid, &msq, sizeof(struct real_data), IPC_NOWAIT)==-1)	// non blocking
-	{
-		msg = "MessageQueueWrite() : msgsnd failed";
-		ERR_LOG(msg);
-
-		return -1;
-	}
-
-	return 1;
-}
-int CameraGrab::MessageQueueFree()
-{
-	if (msgctl(msqid, IPC_RMID, NULL)==-1)
-	{
-		msg = "MessageQueueFree() : msgctl failed";
-		ERR_LOG(msg);
-
-		return -1;
-  }
-
-	return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
-
 class Common gComm;
 CameraGrab::CameraGrab()
 {
@@ -176,16 +34,32 @@ CameraGrab::CameraGrab()
 	msq.data.capWidth = 0;
 	msq.data.capHeight = 0;
 
-  SharedMemoryCreate();
-	MessageQueueCreate();
+  //SharedMemoryCreate();
+	//MessageQueueCreate();
+#else
 #endif
+	// shared memory for grab image
+	Sm_Grab = new Ipcs(KEY_NUM_SM, MEM_SIZE_SM);
+	Sm_Grab->SharedMemoryCreate();
+
+	Sm_Res = new Ipcs(KEY_NUM_SM_RES, MEM_SIZE_SM_RES);
+	Sm_Res->SharedMemoryCreate();
+
+	Mq_Grab = new Ipcs(KEY_NUM_MQ_GRAB, 0);
+	Mq_Grab->MessageQueueCreate();
+	msq.msg_type = 1;
 }
 
 
 CameraGrab::~CameraGrab()
 {
-	SharedMemoryFree();
-	MessageQueueFree();
+	Sm_Grab->SharedMemoryFree();
+	Sm_Res->SharedMemoryFree();
+	Mq_Grab->MessageQueueFree();
+
+	SAFE_DELETE(Sm_Grab);
+	SAFE_DELETE(Sm_Res);
+	SAFE_DELETE(Mq_Grab);
 }
 
 bool CameraGrab::Init()
@@ -327,30 +201,41 @@ int CameraGrab::RunGrabbing()
 					// GPIO
 					CtrlUserModeGpio();
 
-
 					// Update
-					if (msq.data.capWidth != (int)width || msq.data.capHeight != (int)height || MessageQueueQNum() < 1)
+					// Use message queue
+					if (msq.data.capWidth != (int)width || msq.data.capHeight != (int)height || Mq_Grab->MessageQueueQNum() < 1)
 					{
 						msq.data.capWidth = width;
 						msq.data.capHeight = height;
-						MessageQueueWrite();
+						Mq_Grab->MessageQueueWrite((char*)&msq);
+					}
+
+					// Use shared memory
+					if (st_grab.capWidth != (int)width || st_grab.capHeight != (int)height)
+					{
+						st_grab.capWidth = width;
+						st_grab.capHeight = height;
+						Sm_Res->SharedMemoryWrite((char *)&st_grab, sizeof(struct grab_data));
 					}
 
 					// write to shared memory
 					ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
-					SharedMemoryWrite(convertedImage, convertedImage->GetBufferSize());
+					Sm_Grab->SharedMemoryWrite((char*)convertedImage->GetData(), convertedImage->GetBufferSize());
 
 #if true
 					if (bSaveEnable) 
 					{
-						ostringstream filename;
+						ostringstream filename_tmp;			// 임시 저장파일
+						ostringstream filename;					// 실시간 모니터링 용
 						//filename << strSavePath << "/Grab-" << gComm.string_format("%09d", imageCnt) << ".jpg";
 						filename << strSavePath << "/monitor.jpg";
+						filename_tmp << strSavePath << "/monitor_tmp.jpg";
 
 						try 
 						{
 							//ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
-							convertedImage->Save(filename.str().c_str());
+							convertedImage->Save(filename_tmp.str().c_str());
+							rename(filename_tmp.str().c_str(), filename.str().c_str());
 						}
 						catch (Spinnaker::Exception& e)
 						{

@@ -74,12 +74,12 @@ clean: CMakeFiles/InferenceNCNN.dir/clean
 CMakeFiles/InferenceNCNN.dir/all:
 	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/depend
 	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/images/apps/LPR/InferenceNCNN/build/CMakeFiles --progress-num=1,2,3,4,5 "Built target InferenceNCNN"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/images/apps/LPR/InferenceNCNN/build/CMakeFiles --progress-num=1,2,3,4,5,6 "Built target InferenceNCNN"
 .PHONY : CMakeFiles/InferenceNCNN.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/InferenceNCNN.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /images/apps/LPR/InferenceNCNN/build/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /images/apps/LPR/InferenceNCNN/build/CMakeFiles 6
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/InferenceNCNN.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /images/apps/LPR/InferenceNCNN/build/CMakeFiles 0
 .PHONY : CMakeFiles/InferenceNCNN.dir/rule

@@ -211,6 +211,7 @@ int CameraFormat::SetGpioUserMode()
 	SetLineSource();
 	SetUserOutputSelector();
 	SetUserOutputValue(false);
+	Set3_3Voltage(true);
 
 	return 1;
 }
@@ -301,6 +302,22 @@ int CameraFormat::SetUserOutputValue(bool value)
 	ptrUserOutputValue->SetValue(value);
 
 	cout << endl << "SetUserOutputValue() : ptrUserOutputValue->GetValue() = " << ptrUserOutputValue->GetValue() << endl;
+
+	return 1;
+}
+
+int CameraFormat::Set3_3Voltage(bool value)
+{
+	CBooleanPtr ptrV3_3Enable = pCam->GetNodeMap().GetNode("V3_3Enable");
+	if (!IsAvailable(ptrV3_3Enable) || !IsWritable(ptrV3_3Enable))
+	{
+			cout << "Unable to set V3_3Enable. Aborting..." << endl << endl;
+		return -1;
+	}
+
+	ptrV3_3Enable->SetValue(value);
+
+	cout << endl << "Set3_3Voltage() : ptrV3_3Enable->GetValue() = " << ptrV3_3Enable->GetValue() << endl;
 
 	return 1;
 }

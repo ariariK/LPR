@@ -8,10 +8,18 @@
  */
 
 #pragma once
-#define KEY_NUM_SM		      1234
-#define MEM_SIZE_SM	        512*4096
-#define KEY_NUM_MQ_GRAB     2345
-#define KEY_NUM_MQ_LPDR     3456
+#include "Typedef.h"
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/msg.h>
+
+#define KEY_NUM_SM		      1234          // 공유메모리 - 캡쳐 이미지
+#define MEM_SIZE_SM	        512*4096      // 공유메모리 크기
+#define KEY_NUM_SM_RES      1235          // 공유메모리 - 캡쳐 정보
+#define MEM_SIZE_SM_RES	    32            // 공유메모리 크기
+
+#define KEY_NUM_MQ_GRAB     2345          // 메시지큐 - 캡쳐 정보
+#define KEY_NUM_MQ_LPDR     3456          // 메시지큐 - LPDR
 
 class Ipcs
 {
@@ -19,7 +27,7 @@ class Ipcs
 // Construction
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
 public:
-	Ipcs(int key);
+	Ipcs(int key, int size);
 	virtual ~Ipcs();
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
@@ -30,8 +38,11 @@ public:
 private:
 
 protected:
-  int   mq_key;
-  bool  mq_created;
+  string 			msg;
+
+  int   key_num;
+  int   mem_size;
+  bool  created;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
 // Operations
@@ -43,19 +54,20 @@ protected:
 
 public:
   //////////////////////////////////////////////////////////////////////////////////////////////////////	
-	// IPC : Shared Memory
+	// IPC : Shared Memory : 이미지 캡쳐
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
   int shmid;
 	int SharedMemoryCreate();
+  int SharedMemoryInit();
   int SharedMemoryRead(char *sMemory);
+  int SharedMemoryWrite(char *shareddata, int size);
 	int SharedMemoryFree(void);	
   //////////////////////////////////////////////////////////////////////////////////////////////////////	
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////	
 	// IPC : Message Queue
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
-  int msqid_grab;
-  int msqid_lpdr;
+  int msqid;
 	struct grab_data{
 		int capWidth;
 		int capHeight;
@@ -80,7 +92,7 @@ public:
 	int MessageQueueCreate();
   int MessageQueueInit();
 	int MessageQueueQNum();
-  int MessageQueueRead(char* data);
+  int MessageQueueRead(char *data, int flag = IPC_NOWAIT);
 	int MessageQueueWrite(char *data);
 	int MessageQueueFree();
   //////////////////////////////////////////////////////////////////////////////////////////////////////	

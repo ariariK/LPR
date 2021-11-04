@@ -1,4 +1,5 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.o"
   "CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_detect.cpp.o"
   "CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_ocr.cpp.o"
   "CMakeFiles/InferenceNCNN.dir/src/lpr_demo/utils.cpp.o"

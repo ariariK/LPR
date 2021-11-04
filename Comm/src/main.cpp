@@ -31,36 +31,60 @@ bool bIsRunningSocketRecv;
 bool bIsRunningUsage;
 pthread_mutex_t mutex_socket;
 
+struct lpdr_data{
+    long timestamp;
+    char carNo[64];
+};
+struct message_lpdr{
+    long msg_type;
+    struct lpdr_data data;
+};
+struct message_lpdr msq_lpdr;
+
+
 void* thread_socket_send(void* args)
 {
   CommSocket* comm = (CommSocket*)args;
 
-  Ipcs* ipcs_lpdr   = new Ipcs(KEY_NUM_MQ_LPDR);
-  ipcs_lpdr->MessageQueueInit();
+  Ipcs* Mq_Lpdr   = new Ipcs(KEY_NUM_MQ_LPDR, 0);
+  Mq_Lpdr->MessageQueueInit();
 
   string log;
   string fname;
   while(bIsRunningSocketSend)
   {
-    int qnum = ipcs_lpdr->MessageQueueQNum();
+    int qnum = Mq_Lpdr->MessageQueueQNum();
     //cout << "mq_lpdr queue size = " << qnum << endl;
     if(qnum)  // not empty
     {
       pthread_mutex_lock(&mutex_socket);
-      ipcs_lpdr->MessageQueueRead((char *)&ipcs_lpdr->msq_lpdr);
+      Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr);
 
-      //cout << "ipcs_lpdr->msq_lpdr.data = " << ipcs_lpdr->msq_lpdr.data.timestamp << endl;
+      //cout << "msq_lpdr.data = " << msq_lpdr.data.timestamp << endl;
 
-      int writelen = comm->SendPacketPatrolCarInfo((time_t)ipcs_lpdr->msq_lpdr.data.timestamp, std::string(ipcs_lpdr->msq_lpdr.data.carNo));
+      int writelen = comm->SendPacketPatrolCarInfo((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo));
       cout << "Send : " << writelen << " bytes" << endl;
       pthread_mutex_unlock(&mutex_socket);
-    }
 
-    //usleep(1000000);
-    usleep(10000);
+      if(writelen > 0)
+      {
+        // OK
+      }
+      else
+      {
+        log = "EXIT Thread(Error!!! - thread_socket_send)";
+        ERR_LOG(log);
+        exit(1);
+      }
+    }
+    else 
+    {
+      //usleep(1000000);
+      usleep(10000);
+    }
    }
 
-  ipcs_lpdr->MessageQueueFree();
+  Mq_Lpdr->MessageQueueFree();
 
   log = "EXIT Thread(socket_send)";
   INFO_LOG(log);
@@ -79,14 +103,23 @@ void* thread_socket_recv(void* args)
     int readlen = comm->RecvPacketPatrolResponse();
     cout << "Received : " << readlen << " bytes" << endl;
 
-    pthread_mutex_lock(&mutex_socket);
-    // 수배차량, 비수배차량 체크
-    // 이미지전송
-    comm->SendPacketImage();
+    if(readlen > 0) 
+    {
+      pthread_mutex_lock(&mutex_socket);
+      // 수배차량, 비수배차량 체크
+      // 이미지전송
+      comm->SendPacketImage();
 
-    // 업데이트(삭제)
-    comm->UpdateImageList();
-    pthread_mutex_unlock(&mutex_socket);
+      // 업데이트(삭제)
+      comm->UpdateImageList();
+      pthread_mutex_unlock(&mutex_socket);
+    }
+    else 
+    {
+      log = "EXIT Thread(Error!!! - thread_socket_recv)";
+      ERR_LOG(log);
+      exit(1);
+    }
 
     usleep(10000);
   }
@@ -174,14 +207,12 @@ int main(int argc, char** argv)
   ////////////////////////////////////////////////////////////////////////////////////
   // Initialize
   ////////////////////////////////////////////////////////////////////////////////////
-  Ipcs* ipcs_grab   = new Ipcs(KEY_NUM_MQ_GRAB);
-  //Ipcs* ipcs_lpdr   = new Ipcs(KEY_NUM_MQ_LPDR);
+  Ipcs* Mq_Grab   = new Ipcs(KEY_NUM_MQ_GRAB, 0);
   //CommSocket* comm  = new CommSocket("AI Edge Device - No.1", "123가 4567");
   CommSocket* comm  = new CommSocket(strPatrolID, strVehicleInfo);
   Usage* usage      = new Usage();
-  ipcs_grab->MessageQueueInit();
-  //ipcs_lpdr->MessageQueueInit();
-
+  Mq_Grab->MessageQueueInit();
+  
   // socket 
   //if (comm->ConnectToServer(SERVER_IP, SERVER_PORT) < 0)
   if (comm->ConnectToServer(server_ip, server_port) < 0)
@@ -207,13 +238,11 @@ int main(int argc, char** argv)
   ////////////////////////////////////////////////////////////////////////////////////
   // Release
   ////////////////////////////////////////////////////////////////////////////////////
-  ipcs_grab->MessageQueueFree();
-  //ipcs_lpdr->MessageQueueFree();
-
+  Mq_Grab->MessageQueueFree();
+  
   SAFE_DELETE(comm);
   SAFE_DELETE(usage);
-  SAFE_DELETE(ipcs_grab);
-  //SAFE_DELETE(ipcs_lpdr);
-  
+  SAFE_DELETE(Mq_Grab);
+    
   return 1;
 }
