@@ -663,7 +663,10 @@ void l_detect::run_inference(cv::Mat& src, std::vector<krlprutils::TargetBox>& r
         res.clear();
         float scaleW = (float)src.cols / (float)inputWidth;
         float scaleH = (float)src.rows / (float)inputHeight;
+
         //resize of input image data
+        //std::cout << "scaleW : " << scaleW << std::endl;
+        //std::cout << "scaleH : " << scaleH << std::endl;
         ncnn::Mat inputImg = ncnn::Mat::from_pixels_resize(src.data, ncnn::Mat::PIXEL_BGR,\
                                                         src.cols, src.rows, inputWidth, inputHeight);
         //Normalization of input image data
@@ -695,7 +698,16 @@ void l_detect::run_inference(cv::Mat& src, std::vector<krlprutils::TargetBox>& r
             rect.y = res[i].y1;
             rect.width = res[i].getWidth();
             rect.height = res[i].getHeight();
-            res[i].lpr_src = cv::Mat(src, rect);
+            // add. by ariari : 2021.11.8
+            if (rect.x > 0 && rect.y > 0 && (rect.x + rect.width < src.cols) && (rect.y + rect.height < src.rows))
+            {
+                res[i].lpr_src = cv::Mat(src, rect);
+            }
+            else 
+            {
+                res.clear();
+                break;
+            }
         }
     #endif
 }

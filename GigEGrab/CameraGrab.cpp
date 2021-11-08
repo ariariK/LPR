@@ -228,8 +228,8 @@ int CameraGrab::RunGrabbing()
 						ostringstream filename_tmp;			// 임시 저장파일
 						ostringstream filename;					// 실시간 모니터링 용
 						//filename << strSavePath << "/Grab-" << gComm.string_format("%09d", imageCnt) << ".jpg";
-						filename << strSavePath << "/monitor.jpg";
-						filename_tmp << strSavePath << "/monitor_tmp.jpg";
+						filename << strSavePath << "/monitor_real.jpg";
+						filename_tmp << strSavePath << "/monitor_real_tmp.jpg";
 
 						try 
 						{

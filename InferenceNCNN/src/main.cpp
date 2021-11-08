@@ -57,6 +57,13 @@ struct message_lpdr{
 };
 struct message_lpdr msq_lpdr;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//#define USE_Q_FOR_FILELIST
+struct file_info{
+    std::string fileOrg;
+    std::string fileLpd;
+};
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 time_t getTimemsec()
 {
@@ -77,7 +84,8 @@ bool isNumber(const string& str)
 
 void* thread_lpr(void* arg)
 {
-    cv::Mat frame;
+    cv::Mat frame_gray;
+    cv::Mat frame_bgr;
     std::vector<krlpr::krlprutils::TargetBox> boxes;
 
     /* clock statistics running time */
@@ -96,6 +104,12 @@ void* thread_lpr(void* arg)
     Mq_Lpdr->MessageQueueCreate();
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef USE_Q_FOR_FILELIST
+    std::queue<file_info> fileQueue;
+#endif
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     while(is_running) 
     {
         boxes.clear();
@@ -110,15 +124,17 @@ void* thread_lpr(void* arg)
             Sm_Grab->SharedMemoryInit();
             fprintf(stderr, "[Error!!!]SharedMemoryRead()\n");  
         }
-        cv::Mat img = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
-        cvtColor(img, frame, cv::COLOR_GRAY2RGB);
+        frame_gray = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
+        //cv::resize(img, img, cv::Size(640, 480));
+        // resize to 640 x 580
+        cvtColor(frame_gray, frame_bgr, cv::COLOR_GRAY2BGR);
 #else   // false = for test(using image)
         // from image(for test)
         frame = cv::imread("/oem/test_data/images.jpg");
 #endif        
         // run detect
         start_lpd = clock();
-        lpr_detect->run_inference(frame, boxes);            // fill data an run ai model, get result
+        lpr_detect->run_inference(frame_bgr, boxes);            // fill data an run ai model, get result
         end_lpd = clock();
         fprintf(stderr, "Thread[ldetect] boxes: size=%d\n", boxes.size());
 
@@ -132,7 +148,7 @@ void* thread_lpr(void* arg)
             mseconds_lpr  = 0;
 
             start_lpr = clock();
-            lpr_ocr->run_inference(boxes, frame);   // run lp ocr and draw result in the frame
+            lpr_ocr->run_inference(boxes, frame_gray);   // run lp ocr and draw result in the frame
             end_lpr = clock();
             fprintf(stderr, "Thread[locr] boxes: size=%d\n", boxes.size());
 
@@ -175,25 +191,66 @@ void* thread_lpr(void* arg)
                 // 2. copy to /userdata/result/timestamp_1.jpg
                 // 3. updata message queue
                 //////////////////////////////////////////////////////////////////////////////////////////////
+                file_info fInfo;
                 int qsize = Mq_Lpdr->MessageQueueQNum();
-                if(ib > -1 && qsize < MQ_LPDR_MAX_QSIZE)
+                if(ib > -1 && qsize >= MQ_LPDR_MAX_QSIZE)   // delete
                 {
+                    Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr);
+                    string carNo(msq_lpdr.data.carNo);
+                    fInfo.fileOrg = "/userdata/result/" + to_string(msq_lpdr.data.timestamp) + "_" + carNo + "_0.jpg";
+                    fInfo.fileLpd = "/userdata/result/" + to_string(msq_lpdr.data.timestamp) + "_" + carNo + "_1.jpg";
+                    if (remove(fInfo.fileOrg.c_str()) != 0)
+                    {
+                        cout << "[POP_Queue]Error deleting file : " << fInfo.fileOrg << endl;
+                    }
+                    else
+                    {
+                        cout << "[POP_Queue]File successfully deleted : " << fInfo.fileOrg << endl;
+                    }
+                    
+                    if (remove(fInfo.fileLpd.c_str()) != 0)
+                    {
+                        cout << "[POP_Queue]Error deleting file : " << fInfo.fileLpd << endl;
+                    }
+                    else
+                    {
+                        cout << "[POP_Queue]File successfully deleted : " << fInfo.fileLpd << endl;
+                    }
+                }
+
+                // add. new item
+                //if(ib > -1 && qsize < MQ_LPDR_MAX_QSIZE)
+                if(ib > -1)
+                {
+                    std::string fname_tmp;
                     time_t msecs_time = getTimemsec();
-                    std::string fname;
-                    fname = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[ib].lpr_string + "_0.jpg";
-                    cv::imwrite(fname.c_str(), frame);
+
+                    fInfo.fileOrg = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[ib].lpr_string + "_0.jpg";
+                    fname_tmp = "/oem/Screen_shot/0_tmp.jpg";
+                    
+                    cv::imwrite(fInfo.fileOrg.c_str(), frame_gray);
+                    cv::imwrite(fname_tmp.c_str(), frame_gray);
 
                     cv::Rect rect(boxes[ib].x1, boxes[ib].y1, boxes[ib].x2-boxes[ib].x1, boxes[ib].y2-boxes[ib].y1);
-                    cv::Mat lpd = frame(rect);
-                    //fname = "/userdata/result/" + to_string(msecs_time) + "_1.jpg";
-                    fname = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[ib].lpr_string + "_1.jpg";
-                    cv::imwrite(fname.c_str(), lpd);
+                    cv::Mat lpd = frame_gray(rect);
+                    fInfo.fileLpd = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[ib].lpr_string + "_1.jpg";
+                    fname_tmp = "/oem/Screen_shot/1_tmp.jpg";
+
+                    cv::imwrite(fInfo.fileLpd.c_str(), lpd);
+                    cv::imwrite(fname_tmp.c_str(), lpd);
 
                     msq_lpdr.msg_type = 1;
                     msq_lpdr.data.timestamp = msecs_time;
                     memset(msq_lpdr.data.carNo, 0, sizeof(msq_lpdr.data.carNo));
                     strncpy(msq_lpdr.data.carNo, boxes[ib].lpr_string.c_str(), boxes[ib].lpr_string.size());
+#ifdef USE_Q_FOR_FILELIST
+                    fileQueue.push(fInfo);
+#endif
                     Mq_Lpdr->MessageQueueWrite((char *)&msq_lpdr);
+
+                    // rename
+                    rename("/oem/Screen_shot/0_tmp.jpg", "/oem/Screen_shot/0.jpg");
+                    rename("/oem/Screen_shot/1_tmp.jpg", "/oem/Screen_shot/1.jpg");
                 }
                 //////////////////////////////////////////////////////////////////////////////////////////////
                 
@@ -201,7 +258,7 @@ void* thread_lpr(void* arg)
             mseconds_lpr  =(double)(end_lpr - start_lpr)/CLOCKS_PER_SEC;
             fprintf(stderr, "Thread[locr] Use time is: %.8f\n\n", mseconds_lpr);
 
-            cv::imwrite("/oem/Screen_shot/detect.jpg", frame);
+            cv::imwrite("/oem/Screen_shot/detect.jpg", frame_gray);
         }
 
     }

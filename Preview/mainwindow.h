@@ -7,6 +7,8 @@
 #include <QMainWindow>
 #include <QTimer>
 #include <QLabel>
+#include <QPixmap>
+#include <QPainter>
 
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
@@ -43,6 +45,8 @@ private:
 
     int capWidth;
     int capHeight;
+    int screenWidth;
+    int screenHeight;
     void GetParameters();
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////	

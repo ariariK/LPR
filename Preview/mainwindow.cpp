@@ -2,8 +2,8 @@
 #include "ui_mainwindow.h"
 
 #include <QFileDialog>
-#include <QPixmap>
 #include <QDebug>
+#include <QDesktopWidget>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -19,6 +19,9 @@ using namespace Spinnaker::GenICam;
 #define IPC_SM  0
 #define IPC_MQ  1
 #define IPC_MODE IPC_MQ
+
+#define MARGIN_HOR 18
+#define MARGIN_VER 18
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -62,6 +65,12 @@ MainWindow::MainWindow(QWidget *parent)
     ui->screen->setStyleSheet("QLabel { background-color : black; color : red; }");
     //ui->screen->setStyleSheet("QLabel { background-color : blue; color : white; }");
 
+    QRect rec = QApplication::desktop()->screenGeometry();
+    screenWidth     = rec.width() - MARGIN_HOR;
+    screenHeight    = rec.height() - MARGIN_VER;
+    ui->screen->setMinimumSize(screenWidth, screenHeight);
+    ui->screen->setMaximumSize(screenWidth, screenHeight);
+    
     // font
     QFont font = ui->screen->font();
     font.setPointSize(20);
@@ -120,7 +129,7 @@ void MainWindow::GetParameters()
 
 void MainWindow::Update()
 {
-    //qDebug() << "Update";
+    qDebug() << "Update";
 
 #if (IPC_MODE == IPC_SM)
     Sm_Res->SharedMemoryRead((char *)&st_grab);
@@ -175,12 +184,49 @@ void MainWindow::Update()
         //cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
         cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
 
+
+#if false
         // ���÷��� fix to window
         QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
                                         cvimg.cols,
                                         cvimg.rows,
                                         QImage::Format_Grayscale8));
+
+
         ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
+
+#else
+        QRect rec = QApplication::desktop()->screenGeometry();
+        if (screenWidth != rec.width() || screenHeight != rec.height())
+        {
+            screenWidth     = rec.width() - MARGIN_HOR;
+            screenHeight    = rec.height() - MARGIN_VER;
+            ui->screen->setMinimumSize(screenWidth, screenHeight);
+            ui->screen->setMaximumSize(screenWidth, screenHeight);
+        }
+        QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
+                                    cvimg.cols,
+                                    cvimg.rows,
+                                    QImage::Format_Grayscale8));
+
+        QPixmap *pixmap     = new QPixmap(ui->screen->width(), ui->screen->height());
+        QPainter *painter   = new QPainter(pixmap);
+        pixmap->fill(Qt::transparent);
+        painter->drawPixmap(0, 0, ui->screen->width(), ui->screen->height() - 200, picture);
+        //painter->drawPixmap(0, ui->screen->height() - 190, 100, 100, QPixmap("/oem/lpd.jpg"));
+        painter->drawPixmap(0, ui->screen->height() - 190, ui->screen->width()/2, 200, QPixmap("/oem/Screen_shot/0.jpg"));
+        painter->drawPixmap(ui->screen->width()/2, ui->screen->height() - 190, ui->screen->width()/2, 200, QPixmap("/oem/Screen_shot/1.jpg"));
+        painter->end();
+
+        ui->screen->setPixmap(*pixmap);
+        ui->screen->resize(QSize(ui->screen->width(),ui->screen->height()));
+
+        ui->screen->pixmap()->save("/oem/Screen_shot/monitor_tmp.jpg");
+        rename("/oem/Screen_shot/monitor_tmp.jpg", "/oem/Screen_shot/monitor.jpg");
+
+        delete pixmap;
+        delete painter;
+#endif
     }
     else 
     {
