@@ -129,7 +129,7 @@ void MainWindow::GetParameters()
 
 void MainWindow::Update()
 {
-    qDebug() << "Update";
+    //qDebug() << "Update";
 
 #if (IPC_MODE == IPC_SM)
     Sm_Res->SharedMemoryRead((char *)&st_grab);
