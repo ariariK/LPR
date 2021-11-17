@@ -17,6 +17,8 @@
 #define MEM_SIZE_SM	        512*4096      // 공유메모리 크기
 #define KEY_NUM_SM_RES      1235          // 공유메모리 - 캡쳐 정보
 #define MEM_SIZE_SM_RES	    32            // 공유메모리 크기
+#define KEY_NUM_SM_LPR      1236          // 공유메모리 - 번호판 결과
+#define MEM_SIZE_SM_LPR	    32            // 공유메모리 크기
 
 #define KEY_NUM_MQ_GRAB     2345          // 메시지큐 - 캡쳐 정보
 #define KEY_NUM_MQ_LPDR     3456          // 메시지큐 - LPDR

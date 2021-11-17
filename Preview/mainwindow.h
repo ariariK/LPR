@@ -31,7 +31,13 @@ public:
     QLabel *screen;
     QString version;
     QString msg;
-    
+
+
+    QFont font_lpr;
+    QRectF rect_city;
+    QRectF rect_left;
+    QRectF rect_center;
+    QRectF rect_right;
 
 private slots:
     void Update();
@@ -47,13 +53,25 @@ private:
     int capHeight;
     int screenWidth;
     int screenHeight;
+
+    char carNo[32];
+    string strNoFront;
+    string strNoBack;
+    string strHangulF;
+    string strHangulB;
+    string strHangulFileNameF;
+    string strHangulFileNameB;
+
     void GetParameters();
+    void CheckScreenGeometry();
+    void GetCarNoInfo(std::string strCarNo);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////	
 	// IPC
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
     Ipcs	*Sm_Grab;
     Ipcs	*Sm_Res;
+    Ipcs	*Sm_Lpr;
 	Ipcs	*Mq_Grab;
 
     struct grab_data{

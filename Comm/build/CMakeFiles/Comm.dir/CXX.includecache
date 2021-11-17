@@ -16,6 +16,14 @@ string
 cstring
 -
 
+/images/apps/LPR/Comm/src/ipcs.cpp
+ipcs.h
+/images/apps/LPR/Comm/src/ipcs.h
+errno.h
+-
+sys/time.h
+-
+
 /images/apps/LPR/Comm/src/ipcs.h
 Typedef.h
 /images/apps/LPR/Comm/src/Typedef.h

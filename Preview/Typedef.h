@@ -1,5 +1,5 @@
 /*
- *	Typedef.cpp
+ *	Typedef.h
  *
  * 
  *
@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string>
 #include <cstring>
+#include <map>
 
 using namespace std;
 
@@ -26,4 +27,3 @@ using namespace std;
 #define NOTICE_LOG(fmt, ...)    { syslog(LOG_NOTICE,  "[Notice][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
 #define INFO_LOG(fmt, ...)      { syslog(LOG_INFO,    "[Info][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
 #define DEBUG_LOG(fmt, ...)     { syslog(LOG_DEBUG,   "[Debug][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
-

@@ -104,13 +104,78 @@ int	CameraGrab::CtrlUserModeGpio()
 	CBooleanPtr ptrUserOutputValue = pCam->GetNodeMap().GetNode("UserOutputValue");
 	if (ptrGain->GetValue() < (float)fGainValue) 	// Day
 	{
-		ptrUserOutputValue->SetValue(false);
+		//ptrUserOutputValue->SetValue(false);
+		ptrUserOutputValue->SetValue(true);		// inverted
 	}
 	else 														// Night
 	{
-		ptrUserOutputValue->SetValue(true);
+		//ptrUserOutputValue->SetValue(true);
+		ptrUserOutputValue->SetValue(false);
 	}
 	
+	return 0;
+}
+
+int CameraGrab::SetLineSource()
+{
+	// get ExposureTime
+	// Float node
+	int dn;	// 0:on, 1,2:off
+	float gain, expTime;
+	INodeMap& nodeMap = pCam->GetNodeMap();
+	CFloatPtr ptrGain = pCam->GetNodeMap().GetNode("Gain");
+	CFloatPtr exposureTime = nodeMap.GetNode("ExposureTime");
+	CEnumerationPtr ptrLineSource = nodeMap.GetNode("LineSource");
+
+	dn = ptrLineSource->GetIntValue();
+	gain = ptrGain->GetValue();
+	expTime = exposureTime->GetValue();
+	//cout << "current ExposureTime value = " << exposureTime->GetValue() << " [us]" << ", current gain value = " << ptrGain->GetValue() << "[db]" << endl;
+
+	if (dn == 0)		// led on 
+	{
+		// check on -> off
+		if(gain == 0 && expTime < 1000)
+		{
+			//ptrLineSource->SetIntValue(2);
+			ptrLineSource->SetIntValue(1);
+			cout << "current ExposureTime value = " << exposureTime->GetValue() << " [us]" << ", current gain value = " << ptrGain->GetValue() << "[db]" << endl;
+		}
+	}
+	else			// led off
+	{
+		// check off -> on
+		if(gain > (float)fGainValue && expTime > 90000)
+		{
+			ptrLineSource->SetIntValue(0);	
+			cout << "current ExposureTime value = " << exposureTime->GetValue() << " [us]" << ", current gain value = " << ptrGain->GetValue() << "[db]" << endl;
+		}
+	}
+
+#if false
+	CEnumerationPtr exposureAuto = nodeMap.GetNode("ExposureAuto");
+	cout << "current exposureAuto value = " << exposureAuto->GetEntryByName("Continuous")->GetValue() << " [us]" << endl;
+	exposureAuto->SetIntValue(exposureAuto->GetEntryByName("Continuous")->GetValue());
+
+	CEnumerationPtr exposureMode = nodeMap.GetNode("ExposureMode");
+	cout << "current exposureMode value = " << exposureMode->GetEntryByName("Timed")->GetValue() << " [us]" << endl;
+	exposureMode->SetIntValue(exposureMode->GetEntryByName("Timed")->GetValue());
+
+	//if (exposureTime->GetValue() < (float)fGainValue) 	// Day (off = 2)
+	if (exposureTime->GetValue() < (float)fGainValue) 	// Day (off = 2)
+	{
+		//ptrLineSource->SetIntValue(2);
+	}
+	else 																					// Night (on = 0)
+	{
+		ptrLineSource->SetIntValue(0);
+	}
+
+#endif
+
+	
+	//cout << endl << "SetLineSource() : ptrLineSource->GetIntValue() = " << ptrLineSource->GetIntValue() << endl;
+
 	return 0;
 }
 
@@ -199,7 +264,8 @@ int CameraGrab::RunGrabbing()
 					const size_t height = pResultImage->GetHeight();
 
 					// GPIO
-					CtrlUserModeGpio();
+					//CtrlUserModeGpio();
+					SetLineSource();
 
 					// Update
 					// Use message queue

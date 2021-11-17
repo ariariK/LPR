@@ -23,6 +23,21 @@ using namespace Spinnaker::GenICam;
 #define MARGIN_HOR 18
 #define MARGIN_VER 18
 
+std::map<std::string, std::string> hangul_dict = {
+        { "가", "10" },{ "나", "11" },{ "다", "12" },{ "라", "13" },{ "마", "14" },
+        { "거", "15" },{ "너", "16" },{ "더", "17" },{ "러", "18" },{ "머", "19" },
+        { "버", "20" },{ "서", "21" },{ "어", "22" },{ "저", "23" },{ "고", "24" },
+        { "노", "25" },{ "도", "26" },{ "로", "27" },{ "모", "28" },{ "보", "29" },
+        { "소", "30" },{ "오", "31" },{ "조", "32" },{ "구", "33" },{ "누", "34" },
+        { "두", "35" },{ "루", "36" },{ "무", "37" },{ "부", "38" },{ "수", "39" },
+        { "우", "40" },{ "주", "41" },{ "하", "42" },{ "허", "43" },{ "호", "44" },
+        { "바", "45" },{ "사", "46" },{ "아", "47" },{ "자", "48" },{ "배", "49" },
+        { "서울", "50" },{ "부산", "51" },{ "대구", "52" },{ "인천", "53" },{ "광주", "54" },
+        { "대전", "55" },{ "울산", "56" },{ "세종", "57" },{ "경기", "58" },{ "강원", "59" },
+        { "충북", "60" },{ "충남", "61" },{ "전북", "62" },{ "전남", "63" },{ "경북", "64" },
+        { "경남", "65" },{ "제주", "66" },
+    };
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -76,6 +91,10 @@ MainWindow::MainWindow(QWidget *parent)
     font.setPointSize(20);
     font.setBold(true);
     ui->screen->setFont(font);
+
+    //font_lpr.setPixelSize(64);
+    font_lpr.setPixelSize(48);
+    font_lpr.setBold(true);
 #endif
     
     GetParameters();
@@ -90,10 +109,13 @@ MainWindow::MainWindow(QWidget *parent)
     Mq_Grab->MessageQueueInit();
 #else
 #endif
+    Sm_Lpr = new Ipcs(KEY_NUM_SM_LPR, MEM_SIZE_SM_LPR);
+    Sm_Lpr->SharedMemoryInit();
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(Update()));
-    timer->start(200);
+    //timer->start(200);
+    timer->start(50);
 
 #if false
     threadPreview = new ThreadPreview(this);
@@ -118,6 +140,8 @@ MainWindow::~MainWindow()
     SAFE_DELETE(Mq_Grab);
 #else
 #endif
+    SAFE_DELETE(Sm_Lpr);
+
     delete ui;
 }
 
@@ -126,6 +150,110 @@ void MainWindow::GetParameters()
     capWidth    = 0;
     capHeight   = 0;
 }
+
+void MainWindow::CheckScreenGeometry()
+{
+    QRect rec = QApplication::desktop()->screenGeometry();
+    if (screenWidth != rec.width() || screenHeight != rec.height())
+    {
+        screenWidth     = rec.width() - MARGIN_HOR;
+        screenHeight    = rec.height() - MARGIN_VER;
+        ui->screen->setMinimumSize(screenWidth, screenHeight);
+        ui->screen->setMaximumSize(screenWidth, screenHeight);
+
+#if true
+        int offset_x = 20;
+        rect_city.setRect((2*ui->screen->width())/3 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.2, 200);
+        rect_left.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.25, 200);
+        rect_center.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.1, 200);
+        rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.35, 200);
+#else
+        rect_left.setRect((2*ui->screen->width())/3, ui->screen->height() - 190,  (ui->screen->width()/3)*0.3, 200);
+        rect_center.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.3, ui->screen->height() - 190,  (ui->screen->width()/3)*0.2, 200);
+        rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.5, ui->screen->height() - 190,  (ui->screen->width()/3)*0.5, 200);
+#endif        
+    }
+}
+
+void MainWindow::GetCarNoInfo(string strCarNo)
+{
+    int i;
+    int size = 0;
+    int ver = 0;        // 0 - old version (지역정보)
+    int len = strlen(strCarNo.c_str());
+
+    strHangulF = "00";    // 지역정보
+    strNoFront = "";
+    strHangulB = "0";
+    strNoBack  = "";
+    if (len < 9) 
+    {
+        strHangulFileNameF = "/oem/hangul/" + hangul_dict[strHangulF] + ".jpg";   
+        strHangulFileNameB = "/oem/hangul/" + hangul_dict[strHangulB] + ".jpg";
+        return;
+    }
+    
+    for(i=0; i<6; i++)
+    {
+        if((carNo[i] & 0x80) != 0x80)   // 숫자
+        {
+            ver = 1;    // new version
+            break;
+        }
+    }
+
+    if (ver == 1)       // new(current) version(지역정보 없음)
+    {
+        // 1. 지역정보(없음)
+        strHangulF = "00";
+        for(i=0; i<len; i++)
+        {
+            // 2. 첫번째 숫자부분(2~3자리)
+            if((carNo[i] & 0x80) == 0x80)   // 한글
+            {
+                size = i;
+                strNoFront = strCarNo.substr(0, size);
+                break;
+            }
+        }
+        if(size < 2) return;
+
+        // 2. 한글(필수)
+        if(i+3 > (len-4)) return;
+        strHangulB = strCarNo.substr(i, 3);      // 한글1자, 3자리
+
+        // 3. 숫자(4자리)
+        if(i+7 > len) return;
+        strNoBack = strCarNo.substr(i+3, 4);
+
+    }
+    else                // old version(지역정보포함)
+    {
+        // 1. 지역정보(있음)
+        strHangulF = strCarNo.substr(0, 6);     // 한글2자, 6자리
+        for(i=6; i<len; i++)
+        {
+            // 2. 첫번째 숫자부분(2~3자리)
+            if((carNo[i] & 0x80) == 0x80)   // 한글
+            {
+                size = i-6;
+                strNoFront = strCarNo.substr(i, size);
+                break;
+            }
+        }
+        if(size < 2) return;
+        
+        // 2. 한글(필수)
+        if(i+3 > (len-4)) return;
+        strHangulB = strCarNo.substr(i, 3);      // 한글1자, 3자리
+
+        // 3. 숫자(4자리)
+        if(i+7 > len) return;
+        strNoBack = strCarNo.substr(i+3, 4);
+    }
+    strHangulFileNameF = "/oem/hangul/" + hangul_dict[strHangulF] + ".jpg";   
+    strHangulFileNameB = "/oem/hangul/" + hangul_dict[strHangulB] + ".jpg";   
+ }
 
 void MainWindow::Update()
 {
@@ -158,9 +286,10 @@ void MainWindow::Update()
 #else
 #endif
 
-    
     if (capWidth && capHeight)
     {
+        CheckScreenGeometry();
+
 #if (IPC_MODE == IPC_SM)
 #elif (IPC_MODE == IPC_MQ)
         if (Mq_Grab->MessageQueueRead((char*)&msq, 0) < 0)      // blocking mode(0)
@@ -185,7 +314,7 @@ void MainWindow::Update()
         cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
 
 
-#if false
+#if false   // single view mode
         // ���÷��� fix to window
         QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
                                         cvimg.cols,
@@ -194,16 +323,15 @@ void MainWindow::Update()
 
 
         ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
-
-#else
-        QRect rec = QApplication::desktop()->screenGeometry();
-        if (screenWidth != rec.width() || screenHeight != rec.height())
+#else       // multi view mode
+        if (Sm_Lpr->SharedMemoryRead((char *)carNo) < 0)
         {
-            screenWidth     = rec.width() - MARGIN_HOR;
-            screenHeight    = rec.height() - MARGIN_VER;
-            ui->screen->setMinimumSize(screenWidth, screenHeight);
-            ui->screen->setMaximumSize(screenWidth, screenHeight);
+            Sm_Lpr->SharedMemoryInit();
         }
+        string strCarNo(carNo);
+        //string strCarNo("12가3456");  // for test
+        //cout << "carNo result : " << carNo << ", len = " << strlen(carNo) << endl;
+
         QPixmap picture = QPixmap::fromImage(QImage((unsigned char*) cvimg.data,
                                     cvimg.cols,
                                     cvimg.rows,
@@ -212,10 +340,82 @@ void MainWindow::Update()
         QPixmap *pixmap     = new QPixmap(ui->screen->width(), ui->screen->height());
         QPainter *painter   = new QPainter(pixmap);
         pixmap->fill(Qt::transparent);
+        painter->drawRect(rect_left);
+        painter->setPen(QColor(Qt::yellow));
+        painter->setFont(font_lpr);
+       
+        // top(org)
         painter->drawPixmap(0, 0, ui->screen->width(), ui->screen->height() - 200, picture);
-        //painter->drawPixmap(0, ui->screen->height() - 190, 100, 100, QPixmap("/oem/lpd.jpg"));
-        painter->drawPixmap(0, ui->screen->height() - 190, ui->screen->width()/2, 200, QPixmap("/oem/Screen_shot/0.jpg"));
-        painter->drawPixmap(ui->screen->width()/2, ui->screen->height() - 190, ui->screen->width()/2, 200, QPixmap("/oem/Screen_shot/1.jpg"));
+
+        // left(org-small)
+        //painter->drawPixmap(0, ui->screen->height() - 190, ui->screen->width()/2, 200, QPixmap("/oem/Screen_shot/0.jpg"));
+        painter->drawPixmap(0, ui->screen->height() - 190, ui->screen->width()/3, 200, QPixmap("/oem/Screen_shot/0.jpg"));
+
+        // center(lpd)
+        //painter->drawPixmap(ui->screen->width()/2, ui->screen->height() - 190, ui->screen->width()/2, 200, QPixmap("/oem/Screen_shot/1.jpg"));
+        painter->drawPixmap(ui->screen->width()/3, ui->screen->height() - 190, ui->screen->width()/3, 200, QPixmap("/oem/Screen_shot/1.jpg"));
+
+        // right(string)
+        GetCarNoInfo(strCarNo);
+        painter->drawPixmap(rect_city.x(), rect_center.y()+76, rect_city.width(), 48, QPixmap(strHangulFileNameF.c_str()));
+        painter->drawText(rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strNoFront.c_str());
+        painter->drawPixmap(rect_center.x(), rect_center.y()+76, rect_center.width(), 48, QPixmap(strHangulFileNameB.c_str()));
+        painter->drawText(rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strNoBack.c_str());
+
+#if false
+        carNo[0] = 51;
+        carNo[1] = 51;
+        carNo[2] = 234;
+        carNo[3] = 176;
+        carNo[4] = 128;
+        carNo[5] = 57;
+        carNo[6] = 57;
+        carNo[7] = 57;
+        carNo[8] = 57;
+        carNo[9] = 0;
+        printf("[len] : %d\n", strlen(carNo));
+        int h_start = 0;
+        int len = strlen(carNo);
+        char carNo_front[8];
+        char carNo_back[8];
+        int i;
+        for(i=0; i<len; i++)
+        {
+            carNo_front[i] = carNo[i];
+            if((carNo[i] & 0x80) == 0x80)
+            {
+                carNo_front[i] = 0;
+                h_start = i;
+                break;
+            }
+        }
+        printf("[carNo_front : %d] : %s\n", h_start, carNo_front);
+        carNo_back[0] = carNo[len-4];
+        carNo_back[1] = carNo[len-3];
+        carNo_back[2] = carNo[len-2];
+        carNo_back[3] = carNo[len-1];
+        carNo_back[4] = 0;
+
+        strHangul = strCarNo.substr(h_start, max(0, len - 4 - h_start));
+        strHangulFileName = "/oem/" + hangul_dict[strHangul] + ".jpg";
+
+        
+        //painter->drawText(rect, Qt::AlignHCenter | Qt::AlignVCenter, carNo);
+        painter->drawText(rect_left, Qt::AlignHCenter | Qt::AlignVCenter, carNo_front);
+
+        //painter->drawRect(rect2);
+        //painter->drawPixmap(rect2.x(), rect2.y()+76, rect2.width(), 48, QPixmap("/oem/A.jpg"));
+        painter->drawPixmap(rect_center.x(), rect_center.y()+76, rect_center.width(), 48, QPixmap(strHangulFileName.c_str()));
+        //painter->drawPixmap(rect2.x(), rect2.y()+76, rect2.width(), 48, QPixmap(strFile.c_str()));
+        //painter->drawPixmap(rect2.x(), rect2.y()+76, rect2.width(), 48, QPixmap("/oem/'$'\352\260\200''.jpg"));
+
+        //painter->drawRect(rect3);
+        //painter->setPen(QColor(Qt::yellow));
+        //painter->setFont(font_lpr);
+        painter->drawText(rect_right, Qt::AlignHCenter | Qt::AlignVCenter, carNo_back);
+#endif
+        
+
         painter->end();
 
         ui->screen->setPixmap(*pixmap);

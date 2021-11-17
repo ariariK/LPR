@@ -221,18 +221,49 @@ int CameraFormat::SetFrameRate(float frameRate)
 // GPIO
 int CameraFormat::SetGpioUserMode()
 {
+#if true // OK
+	SetTriggerSouce();
+	SetLineSelector();
+	SetLineMode();
+	SetLineSource();
+#endif
+
+#if false	// NG
 	SetLineSelector();
 	SetLineMode();
 	SetLineSource();
 	SetUserOutputSelector();
-	SetUserOutputValue(false);
-	Set3_3Voltage(true);
+	//SetUserOutputValue(false);	// low = ON
+	SetUserOutputValue(true);	// high = OFF
+	Set3_3Voltage(false);
+#endif
+	return 1;
+}
+
+int CameraFormat::SetTriggerSouce()
+{
+	// It retrieves GenICam nodemap
+  INodeMap& nodeMap = pCam->GetNodeMap();
+
+	CEnumerationPtr triggerSelector = nodeMap.GetNode("TriggerSelector");
+	triggerSelector->SetIntValue(triggerSelector->GetEntryByName("FrameStart")->GetValue());
+
+	CEnumerationPtr triggerMode = nodeMap.GetNode("TriggerMode");
+	triggerMode->SetIntValue(triggerMode->GetEntryByName("Off")->GetValue());
+
+	CEnumerationPtr triggerSource = nodeMap.GetNode("TriggerSource");
+	triggerSource->SetIntValue(triggerSource->GetEntryByName("Line0")->GetValue());
+
+	CEnumerationPtr triggerActivation = nodeMap.GetNode("TriggerActivation");
+	triggerActivation->SetIntValue(triggerActivation->GetEntryByName("FallingEdge")->GetValue());
 
 	return 1;
 }
 
 int CameraFormat::SetLineSelector()
 {
+	// use line 1.
+
 	// It retrieves GenICam nodemap
   INodeMap& nodeMap = pCam->GetNodeMap();
   
@@ -253,6 +284,8 @@ int CameraFormat::SetLineSelector()
 
 int CameraFormat::SetLineMode()
 {
+	// set to output mode
+
 	// It retrieves GenICam nodemap
   INodeMap& nodeMap = pCam->GetNodeMap();
 
@@ -262,7 +295,7 @@ int CameraFormat::SetLineMode()
 			cout << "Unable to set Line Mode. Aborting..." << endl << endl;
 			return -1;
 	}
-	ptrLineMode->SetIntValue(1); // output is selected(Output)
+	//ptrLineMode->SetIntValue(1); // output is selected(Output)
 
 	cout << endl << "SetLineMode() : ptrLineMode->GetIntValue() = " << ptrLineMode->GetIntValue() << endl;
 	
@@ -280,8 +313,16 @@ int CameraFormat::SetLineSource()
 			cout << "Unable to set Line Source. Aborting..." << endl << endl;
 			return -1;
 	}
-	ptrLineSource->SetIntValue(2); // User Output1 0 is selected(UserOutput1)
+	// 0 : ExposureActive(Enable, On, Strobe out)
+	// 1 : ExternalTriggerActive(Disable, Off)	w/ trigger source = line 0
+	// 2 : UserOutput1(Not use)
+	//ptrLineSource->SetIntValue(2); // User Output1 2 is selected(UserOutput1)
+	//ptrLineSource->SetIntValue(1); // User Output1 1 is selected(ExternalTriggerActive, Default Off)
 
+	//ptrLineSource->SetIntValue(0);	// on
+	ptrLineSource->SetIntValue(2);	// off : ???
+	ptrLineSource->SetIntValue(1);	// off : ???(good)
+	
 	cout << endl << "SetLineSource() : ptrLineSource->GetIntValue() = " << ptrLineSource->GetIntValue() << endl;
 	
 	return 1;
@@ -298,7 +339,7 @@ int CameraFormat::SetUserOutputSelector()
 			cout << "Unable to set User Output Source. Aborting..." << endl << endl;
 			return -1;
 	}
-	ptrUserOutputSource->SetIntValue(1); // User Output Source 1 is selected(UserOutputValue)
+	//ptrUserOutputSource->SetIntValue(1); // User Output Source 1 is selected(UserOutputValue)
 
 	cout << endl << "SetUserOutputSelector() : ptrUserOutputSource->GetIntValue() = " << ptrUserOutputSource->GetIntValue() << endl;
 

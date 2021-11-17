@@ -240,22 +240,6 @@ sys/shm.h
 sys/msg.h
 -
 
-/images/apps/LPR/InferenceNCNN/src/lpr_demo/l_detect.cpp
-inference_ncnn/l_detect.h
-/images/apps/LPR/InferenceNCNN/src/lpr_demo/inference_ncnn/l_detect.h
-inference_ncnn/utils.h
-/images/apps/LPR/InferenceNCNN/src/lpr_demo/inference_ncnn/utils.h
-format
--
-sstream
--
-iostream
--
-fstream
--
-cstring
--
-
 /images/apps/LPR/InferenceNCNN/src/main.cpp
 inference_ncnn/l_ocr.h
 /images/apps/LPR/InferenceNCNN/src/inference_ncnn/l_ocr.h

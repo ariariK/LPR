@@ -77,6 +77,7 @@ public:
 
 	// GPIO
 	int 	SetGpioUserMode();
+	int 	SetTriggerSouce();
 	int		SetLineSelector();
 	int 	SetLineMode();
 	int		SetLineSource();

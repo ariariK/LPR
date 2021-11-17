@@ -100,6 +100,9 @@ void* thread_lpr(void* arg)
     Ipcs *Sm_Res = new Ipcs(KEY_NUM_SM_RES, MEM_SIZE_SM_RES);
     Sm_Res->SharedMemoryInit();    
 
+    Ipcs *Sm_Lpr = new Ipcs(KEY_NUM_SM_LPR, MEM_SIZE_SM_LPR);
+    Sm_Lpr->SharedMemoryCreate();    
+
     Ipcs *Mq_Lpdr = new Ipcs(KEY_NUM_MQ_LPDR, 0);
     Mq_Lpdr->MessageQueueCreate();
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,7 +133,8 @@ void* thread_lpr(void* arg)
         cvtColor(frame_gray, frame_bgr, cv::COLOR_GRAY2BGR);
 #else   // false = for test(using image)
         // from image(for test)
-        frame = cv::imread("/oem/test_data/images.jpg");
+        frame_bgr = cv::imread("/oem/test_data/images.jpg");
+        cv::cvtColor(frame_bgr, frame_gray, cv::COLOR_BGR2GRAY);
 #endif        
         // run detect
         start_lpd = clock();
@@ -247,6 +251,36 @@ void* thread_lpr(void* arg)
                     fileQueue.push(fInfo);
 #endif
                     Mq_Lpdr->MessageQueueWrite((char *)&msq_lpdr);
+                    #if false
+                    // "33머 9999", "size = 9"
+                    //cout << "lpr result : " << boxes[ib].lpr_string.c_str() << ", len = " << strlen(boxes[ib].lpr_string.c_str()) << endl;
+                    cout << "lpr result : " << msq_lpdr.data.carNo << ", len = " << strlen(msq_lpdr.data.carNo) << endl;
+                    cout << "[0] : " << msq_lpdr.data.carNo[0] << endl;
+                    cout << "[1] : " << msq_lpdr.data.carNo[1] << endl;
+                    cout << "[2] : " << msq_lpdr.data.carNo[2] << endl;
+                    cout << "[3] : " << msq_lpdr.data.carNo[3] << endl;
+                    cout << "[4] : " << msq_lpdr.data.carNo[4] << endl;
+                    cout << "[5] : " << msq_lpdr.data.carNo[5] << endl;
+                    cout << "[6] : " << msq_lpdr.data.carNo[6] << endl;
+                    cout << "[7] : " << msq_lpdr.data.carNo[7] << endl;
+                    cout << "[8] : " << msq_lpdr.data.carNo[8] << endl;
+                    cout << "[=] : " << "######################################################" << endl;
+                    cout << "[2,3,4] : " << msq_lpdr.data.carNo[2] << msq_lpdr.data.carNo[3] << msq_lpdr.data.carNo[4] << endl;
+                    cout << "[=] : " << "######################################################" << endl;
+                    printf("[0] : %d, %c\n", msq_lpdr.data.carNo[0], msq_lpdr.data.carNo[0]);
+                    printf("[1] : %d, %c\n", msq_lpdr.data.carNo[1], msq_lpdr.data.carNo[1]);
+                    printf("[2] : %d, %c\n", msq_lpdr.data.carNo[2], msq_lpdr.data.carNo[2]);
+                    printf("[3] : %d, %c\n", msq_lpdr.data.carNo[3], msq_lpdr.data.carNo[3]);
+                    printf("[4] : %d, %c\n", msq_lpdr.data.carNo[4], msq_lpdr.data.carNo[4]);
+                    printf("[5] : %d, %c\n", msq_lpdr.data.carNo[5], msq_lpdr.data.carNo[5]);
+                    printf("[6] : %d, %c\n", msq_lpdr.data.carNo[6], msq_lpdr.data.carNo[6]);
+                    printf("[7] : %d, %c\n", msq_lpdr.data.carNo[7], msq_lpdr.data.carNo[7]);
+                    printf("[8] : %d, %c\n", msq_lpdr.data.carNo[8], msq_lpdr.data.carNo[8]);
+                    #endif
+
+                    //Sm_Lpr->SharedMemoryWrite((char*)msq_lpdr.data.carNo, strlen(msq_lpdr.data.carNo));
+                    Sm_Lpr->SharedMemoryWrite((char*)msq_lpdr.data.carNo, MEM_SIZE_SM_LPR);
+                    
 
                     // rename
                     rename("/oem/Screen_shot/0_tmp.jpg", "/oem/Screen_shot/0.jpg");
@@ -265,6 +299,7 @@ void* thread_lpr(void* arg)
 
     SAFE_DELETE(Sm_Grab);
     SAFE_DELETE(Sm_Res);
+    SAFE_DELETE(Sm_Lpr);
     SAFE_DELETE(Mq_Lpdr);
 
     return nullptr;

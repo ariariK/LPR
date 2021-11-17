@@ -46,6 +46,7 @@ public:
 	CameraPtr	GetCameraPtr() { return pCam; }
 
 	int		CtrlUserModeGpio();
+	int		SetLineSource();
 
 	int		SetSaveEnable(bool enable);
 	int 	SetSavePath(string path);
