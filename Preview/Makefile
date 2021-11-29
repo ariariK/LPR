@@ -224,7 +224,8 @@ DIST          = /opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/spec_pre.pr
 		/opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/lex.prf \
 		Preview.pro mainwindow.h \
 		threadPreview.h \
-		ipcs.h main.cpp \
+		ipcs.h \
+		Typedef.h main.cpp \
 		mainwindow.cpp \
 		threadPreview.cpp \
 		ipcs.cpp
@@ -581,7 +582,7 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents mainwindow.h threadPreview.h ipcs.h $(DISTDIR)/
+	$(COPY_FILE) --parents mainwindow.h threadPreview.h ipcs.h Typedef.h $(DISTDIR)/
 	$(COPY_FILE) --parents main.cpp mainwindow.cpp threadPreview.cpp ipcs.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents mainwindow.ui $(DISTDIR)/
 

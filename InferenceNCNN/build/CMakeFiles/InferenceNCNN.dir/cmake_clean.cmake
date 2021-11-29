@@ -4,6 +4,7 @@ file(REMOVE_RECURSE
   "CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_ocr.cpp.o"
   "CMakeFiles/InferenceNCNN.dir/src/lpr_demo/utils.cpp.o"
   "CMakeFiles/InferenceNCNN.dir/src/main.cpp.o"
+  "CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o"
   "InferenceNCNN"
   "InferenceNCNN.pdb"
 )

@@ -44,7 +44,8 @@ CameraManager::~CameraManager()
 
 int CameraManager::PrintDeviceInfo(INodeMap& nodeMap)
 {
-	cout << endl << "*** DEVICE INFORMATION ***" << endl << endl;
+	//cout << endl << "*** DEVICE INFORMATION ***" << endl << endl;
+	INFO_LOG(string("*** DEVICE INFORMATION ***"));
 
 	try 
 	{
@@ -63,16 +64,31 @@ int CameraManager::PrintDeviceInfo(INodeMap& nodeMap)
 				CValuePtr pValue = static_cast<CValuePtr>(pfeatureNode);
 				cout << (IsReadable(pValue) ? pValue->ToString() : "Node not readable");
 				cout << endl;	
+
+				if(IsReadable(pValue))
+				{
+					msg = string_format("%s : %s", pfeatureNode->GetName().c_str(), pValue->ToString().c_str());
+				}
+				else 
+				{
+					msg = string_format("%s : Node not readable", pfeatureNode->GetName().c_str());
+				}
+				
+				INFO_LOG(msg);
 			}
 		}
 		else 
 		{
 			cout << "Device control information not available." << endl;
+			ERR_LOG(string("Device control information not available."));
 		}
 	}
 	catch (Spinnaker::Exception& e)
 	{
 		cout << "Error: " << e.what() << endl;
+		msg = string_format("%s", e.what());
+		ERR_LOG(msg);
+
 		return -1;
 	}
 
@@ -93,11 +109,16 @@ bool CameraManager::Init()
 				<< libVersion.build << endl
     		<< endl;
 
+	msg = string_format("Spinnaker library version: %d.%d.%d.%d", libVersion.major, libVersion.minor, libVersion.type, libVersion.build);
+	INFO_LOG(msg);
+
 	// Retrive list of cameras from the system
 	camList = pSystem->GetCameras();
 
 	const unsigned int numCameras = camList.GetSize();
 	cout << "Number of GigE Vision cameras detected: " << numCameras << endl << endl;
+	msg = string_format("Number of GigE Vision cameras detected : %d", numCameras);
+	INFO_LOG(msg);
 
 	// Finish if there are no cameras
 	if (numCameras == 0) 
@@ -106,6 +127,7 @@ bool CameraManager::Init()
 		pSystem->ReleaseInstance();
 
 		cout << "Not enough cameras!" << endl;
+		ERR_LOG(string("Not enough cameras!"));
 		
 		return false;
 	}
@@ -146,6 +168,7 @@ int CameraManager::CameraRelease()
 		pSystem->ReleaseInstance();
 
 		cout << endl << "Release GigE Camrea..." << endl;
+		INFO_LOG(string("Release GigE Camrea..."));
 	}
 	
 	return 0;
@@ -197,6 +220,43 @@ int CameraManager::SetGpioUserMode(float value)
 {
 	pCamFormat->SetGpioUserMode();
 	pCamGrab->SetGainValue(value);
+	return 0;
+}
+
+int CameraManager::SetGpioStrobeMode()
+{
+	pCamFormat->SetGpioStrobeMode();
+	return 0;
+}
+
+int CameraManager::SetGainLow(float value)
+{
+	pCamGrab->SetGainLow(value);
+	return 0;
+}
+
+int CameraManager::SetGainHigh(float value)
+{
+	pCamGrab->SetGainHigh(value);
+	return 0;
+}
+
+
+int CameraManager::SetExposureMax(float value)
+{
+	pCamGrab->SetExposureMax(value);
+	return 0;
+}
+
+int CameraManager::SetExposureLow(float value)
+{
+	pCamGrab->SetExposureLow(value);
+	return 0;
+}
+
+int CameraManager::SetExposureHigh(float value)
+{
+	pCamGrab->SetExposureHigh(value);
 	return 0;
 }
 

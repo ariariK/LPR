@@ -14,11 +14,13 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
-//#include <string.h>
-//#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
 
 #include "Common.h"
 #include "CameraGrab.h"
+
+#define FD_GPIO_ST2	"/sys/class/gpio/gpio158/value"
 
 using namespace std;
 using namespace chrono;
@@ -53,6 +55,10 @@ CameraGrab::CameraGrab()
 
 CameraGrab::~CameraGrab()
 {
+	INodeMap& nodeMap = pCam->GetNodeMap();
+	CEnumerationPtr ptrLineSource = nodeMap.GetNode("LineSource");
+	ptrLineSource->SetIntValue(1);	// OFF
+
 	Sm_Grab->SharedMemoryFree();
 	Sm_Res->SharedMemoryFree();
 	Mq_Grab->MessageQueueFree();
@@ -94,11 +100,48 @@ int CameraGrab::SetGainValue(float value)
 	return 0;
 }
 
+int CameraGrab::SetGainLow(float value)
+{
+	fGainValueLow = value;
+
+	return 0;
+}
+
+int CameraGrab::SetGainHigh(float value)
+{
+	fGainValueHigh = value;
+
+	return 0;
+}
+
+int CameraGrab::SetExposureMax(float value)
+{
+	fExposureValueMax = value;
+
+	return 0;
+}
+
+int CameraGrab::SetExposureLow(float value)
+{
+	fExposureValueLow = value;
+
+	return 0;
+}
+
+int CameraGrab::SetExposureHigh(float value)
+{
+	fExposureValueHigh = value;
+
+	return 0;
+}
+
 int	CameraGrab::CtrlUserModeGpio()
 {
 	// get Gain
 	// Float node
 	CFloatPtr ptrGain = pCam->GetNodeMap().GetNode("Gain");
+	msg = string_format("current gain value = %f[dB]", ptrGain->GetValue());
+	INFO_LOG(msg);
 	//cout << "current gain value = " << ptrGain->GetValue() << " dB" << endl;
 
 	CBooleanPtr ptrUserOutputValue = pCam->GetNodeMap().GetNode("UserOutputValue");
@@ -118,10 +161,14 @@ int	CameraGrab::CtrlUserModeGpio()
 
 int CameraGrab::SetLineSource()
 {
+	static unsigned int debounce_cnt = 0;
+
 	// get ExposureTime
 	// Float node
 	int dn;	// 0:on, 1,2:off
 	float gain, expTime;
+	double thValue, thValueLow, thValueHigh; 
+	
 	INodeMap& nodeMap = pCam->GetNodeMap();
 	CFloatPtr ptrGain = pCam->GetNodeMap().GetNode("Gain");
 	CFloatPtr exposureTime = nodeMap.GetNode("ExposureTime");
@@ -130,25 +177,50 @@ int CameraGrab::SetLineSource()
 	dn = ptrLineSource->GetIntValue();
 	gain = ptrGain->GetValue();
 	expTime = exposureTime->GetValue();
-	//cout << "current ExposureTime value = " << exposureTime->GetValue() << " [us]" << ", current gain value = " << ptrGain->GetValue() << "[db]" << endl;
+
+	msg = string_format("current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+	DEBUG_LOG(msg);
+			
+	// 현재값
+	thValue = (gain * fExposureValueMax) + expTime;
+
+	// low lmit
+	thValueLow = (fGainValueLow * fExposureValueMax) + fExposureValueLow;
+
+	// high limit
+	thValueHigh = (fGainValueHigh * fExposureValueMax) + fExposureValueHigh;
+
 
 	if (dn == 0)		// led on 
 	{
+		debounce_cnt++;
+
 		// check on -> off
-		if(gain == 0 && expTime < 1000)
+		if(debounce_cnt > 50 && thValue < thValueLow)
 		{
+			debounce_cnt = 0;
+
 			//ptrLineSource->SetIntValue(2);
-			ptrLineSource->SetIntValue(1);
-			cout << "current ExposureTime value = " << exposureTime->GetValue() << " [us]" << ", current gain value = " << ptrGain->GetValue() << "[db]" << endl;
+			ptrLineSource->SetIntValue(1);	// org(off)
+			//ptrLineSource->SetIntValue(0);
+
+			msg = string_format("[OFF] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+			INFO_LOG(msg);
 		}
 	}
 	else			// led off
 	{
+		debounce_cnt++;
+
 		// check off -> on
-		if(gain > (float)fGainValue && expTime > 90000)
+		if(debounce_cnt > 50 && thValue > thValueHigh)
 		{
-			ptrLineSource->SetIntValue(0);	
-			cout << "current ExposureTime value = " << exposureTime->GetValue() << " [us]" << ", current gain value = " << ptrGain->GetValue() << "[db]" << endl;
+			debounce_cnt = 0;
+
+			ptrLineSource->SetIntValue(0);
+
+			msg = string_format("[ON] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+			INFO_LOG(msg);
 		}
 	}
 
@@ -179,17 +251,41 @@ int CameraGrab::SetLineSource()
 	return 0;
 }
 
+int CameraGrab::CtrlGPIO(int fd, int value)
+{
+	if(value)
+	{
+		if (write(fd, "1", 1) != 1) 
+		{
+			ERR_LOG(string("Error writing to /sys/class/gpio/gpio158/value"));
+		}
+	}
+	else
+	{
+		if (write(fd, "0", 1) != 1) 
+		{
+			ERR_LOG(string("Error writing to /sys/class/gpio/gpio158/value"));
+		}
+	}
+
+	return 0;
+}
+
 int CameraGrab::RunGrabbing()
 {
 	int result = 0;
 
-	cout << endl << endl << "*** IMAGE ACQUISITION ***" << endl << endl;
+	INFO_LOG(string("*** IMAGE ACQUISITION ***"));
 
 	INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
 	INodeMap& nodeMap 				= pCam->GetNodeMap();
 	INodeMap& nodeMapStream 	= pCam->GetTLStreamNodeMap();
 	CIntegerPtr StreamNode 		= nodeMapStream.GetNode("StreamDefaultBufferCount");
 	
+	int fd = open(FD_GPIO_ST2, O_WRONLY);
+	if (fd == -1) {
+		ERR_LOG(string("Unable to open /sys/class/gpio/gpio158/value"));
+	}
 
 	try
 	{
@@ -197,7 +293,7 @@ int CameraGrab::RunGrabbing()
 		CEnumerationPtr ptrAcquisitionMode = nodeMap.GetNode("AcquisitionMode");
 		if (!IsAvailable(ptrAcquisitionMode) || !IsWritable(ptrAcquisitionMode))
 		{
-			cout << "Unable to set acquisition mode to continuous (enum retrieval). Aborting..." << endl << endl;
+			ERR_LOG(string("Unable to set acquisition mode to continuous (enum retrieval). Aborting..."));
 			return -1;
 		}
 
@@ -205,7 +301,7 @@ int CameraGrab::RunGrabbing()
 		CEnumEntryPtr ptrAcquisitionModeContinuous = ptrAcquisitionMode->GetEntryByName("Continuous");
 		if (!IsAvailable(ptrAcquisitionModeContinuous) || !IsReadable(ptrAcquisitionModeContinuous))
 		{
-			cout << "Unable to set acquisition mode to continuous (entry retrieval). Aborting..." << endl << endl;
+			ERR_LOG(string("Unable to set acquisition mode to continuous (entry retrieval). Aborting..."));
 			return -1;
 		}
 
@@ -214,7 +310,7 @@ int CameraGrab::RunGrabbing()
 
 		// Set integer value from entry node as new value of enumeration node
 		ptrAcquisitionMode->SetIntValue(acquisitionModeContinuous);
-		cout << "Acquisition mode set to continuous..." << endl;
+		INFO_LOG(string("Acquisition mode set to continuous..."));
 
 
 		// Start Acquisition...
@@ -225,12 +321,13 @@ int CameraGrab::RunGrabbing()
 		if (IsAvailable(ptrStringSerial) && IsReadable(ptrStringSerial))
 		{
 			deviceSerialNumber = ptrStringSerial->GetValue();
-			cout << "Device serial number retrieved as " << deviceSerialNumber << "..." << endl;
+			//cout << "Device serial number retrieved as " << deviceSerialNumber << "..." << endl;
+			msg = string_format("Device serial number retrieved as %s", deviceSerialNumber.c_str());
+			INFO_LOG(msg);
 		}
 
 		// Grabbing loop...
 		int pack_size = 100;
-		//int pack_size = 1;
 		int64_t imageCnt = 0;
 		int64_t runningTime = 0;
 	
@@ -250,8 +347,10 @@ int CameraGrab::RunGrabbing()
 							 << "..." << endl
 							 << endl;
 				#else
+#if LOG_LEVEL >= LOG_LEVEL_DEBUG				
 					msg = "Image incomplete: " + (string)Image::GetImageStatusDescription(pResultImage->GetImageStatus());
-					WARN_LOG(msg);
+					DEBUG_LOG(msg);
+#endif
 				#endif
 					pResultImage->Release();
 					continue;
@@ -361,6 +460,9 @@ int CameraGrab::RunGrabbing()
 					//usleep(20000);
 				}
 
+				// LED - ST2 동작상태표시
+				CtrlGPIO(fd, (imageCnt>>2)&0x1);
+
 				pResultImage->Release();
 
 				//cout << endl;
@@ -381,14 +483,17 @@ int CameraGrab::RunGrabbing()
 		// End Acquisition...
 		pCam->EndAcquisition();
 
+		close(fd);
+
 	}	// try
 	catch (Spinnaker::Exception& e)
 	{
 		msg = "Error: " + (string)e.what();
 		//cout << "Error: " << e.what() << endl;
 		cout << msg << endl;
-
 		ERR_LOG(msg);
+
+		close(fd);
 
 		return -1;
 	}	// catch

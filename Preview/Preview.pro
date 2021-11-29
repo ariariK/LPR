@@ -17,7 +17,8 @@ SOURCES += \
 HEADERS += \
     mainwindow.h \
     threadPreview.h \
-    ipcs.h
+    ipcs.h \
+    Typedef.h
 
 FORMS += \
     mainwindow.ui

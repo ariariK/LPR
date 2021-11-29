@@ -53,9 +53,9 @@ private:
     int inputWidth;
     int inputHeight;
     //模型输入输出节点名称
-    char *inputName;
-    char *outputName1; //22x22
-    char *outputName2; //11x11
+    const char *inputName;
+    const char *outputName1; //22x22
+    const char *outputName2; //11x11
 	int nmsHandle(std::vector<krlprutils::TargetBox> &tmpBoxes, std::vector<krlprutils::TargetBox> &dstBoxes);
     int getCategory(const float *values, int index, int &category, float &score);
     int predHandle(const ncnn::Mat *out, std::vector<krlprutils::TargetBox> &dstBoxes, 

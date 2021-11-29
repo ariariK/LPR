@@ -30,7 +30,7 @@ public:
 
     QLabel *screen;
     QString version;
-    QString msg;
+    string msg;
 
 
     QFont font_lpr;

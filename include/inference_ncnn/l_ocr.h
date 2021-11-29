@@ -24,7 +24,8 @@ public:
     ~l_ocr();
     std::vector<std::string> run_inference(std::vector<cv::Mat> l_imgs);
     /* get lpr string and draw on the frame */
-    int run_inference(std::vector<krlprutils::TargetBox> &boxes, cv::Mat& src);
+    //int run_inference(std::vector<krlprutils::TargetBox> &boxes, cv::Mat& src);
+    void run_inference(std::vector<krlprutils::TargetBox> &boxes, cv::Mat& src);
 };
 
 }   //namespace krlpr

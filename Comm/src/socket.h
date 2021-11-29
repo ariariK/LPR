@@ -41,6 +41,7 @@ private:
   int     server_port;
 
 protected:
+  string 			msg;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
 // Operations
@@ -73,6 +74,13 @@ public:
 		short wMilliseconds;
 	} SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
 
+  // sizeof() = 4Bytes
+  typedef struct ELPATROLHEADER
+  {
+    char HEADER[3];
+    char code;
+  } ElPatrolHeader, *LPElPatrolHeader;
+
   // sizeof() = 304Bytes
   typedef struct ELPATROLCARINFO
   {
@@ -96,9 +104,23 @@ public:
     char			    strPatrolID[256];		    // 경찰차 ID 정보, UTF8
     char			    strVehicleInfo[32];		  // 차량번호
 
-    unsigned long	lcommand;
-    unsigned long	dwImageDataSize;
+    unsigned long	lcommand;               // 8bytes
+    unsigned long	dwImageDataSize;        // 8bytes
   } ElPatrolImageSend, *LPElPatrolImageSend;
+
+  // sizeof() = 328Bytes(312+dummy(16))
+  typedef struct ELPATROLIMAGESENDV2
+  {
+    SYSTEMTIME		dateTime;				        // 일시
+    char			    strPatrolID[256];		    // 경찰차 ID 정보, UTF8
+    char			    strVehicleInfo[32];		  // 차량번호
+
+    // dummy
+    unsigned int  dummy[4];               // dummy 16 bytes : total 328bytes
+
+    unsigned int	lcommand;               // 4bytes
+    unsigned int	dwImageDataSize;        // 4bytes
+  } ElPatrolImageSendV2, *LPElPatrolImageSendV2;
 
 
   typedef struct FILEINFO
@@ -115,6 +137,14 @@ public:
   int RecvPacketPatrolResponse();
   int UpdateImageList();
 
+  ElPatrolHeader    patrolHeader;
+  int SetDeleteInfo(time_t timestamp, string carNumber);
+  int SendHeader(char code);
+  int SendPacketPatrolCarInfoV2(time_t timestamp, string carNumber, int code);
+  int SendPacketImageOrg();
+  int SendPacketImageLpd();
+  int ProcPacketMan(char* pbuf, int size);
+
   //////////////////////////////////////////////////////////////////////////////////////////////////////	
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////	
@@ -123,10 +153,11 @@ private:
   string strPatrolID;
   string strVehicleInfo;
 
-  ElPatrolCarInfo   patrolCarInfo;
-  ElpatrolResponse  patrolResponse;
-  ElPatrolImageSend patrolImage;
-  Fileinfo          delFileInfo;
+  ElPatrolCarInfo     patrolCarInfo;
+  ElpatrolResponse    patrolResponse;
+  ElPatrolImageSend   patrolImage;
+  ElPatrolImageSendV2 patrolImageV2;
+  Fileinfo            delFileInfo;
 
   int PrintPacketPatrolInfo(char* patrolinfo);
   int ParseSystemTime(time_t timestamp, PSYSTEMTIME pSystime);

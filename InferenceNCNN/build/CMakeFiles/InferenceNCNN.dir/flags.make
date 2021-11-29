@@ -4,7 +4,7 @@
 # compile CXX with /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/bin/aarch64-buildroot-linux-gnu-g++
 CXX_FLAGS =   -std=gnu++14
 
-CXX_DEFINES = 
+CXX_DEFINES = -DLOG_LEVEL=6
 
 CXX_INCLUDES = -I/images/apps/LPR/InferenceNCNN/../include -I/images/apps/LPR/InferenceNCNN/../include/ncnn -I/opt/tensorflow_src -I/opt/tensorflow_src/tensorflow/lite/tools/make/downloads/flatbuffers/include -I/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include 
 

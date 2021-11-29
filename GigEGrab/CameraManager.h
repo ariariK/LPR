@@ -40,6 +40,8 @@ private:
 	int64_t 	nCapHeight;
 
 protected:
+	string 			msg;
+	
 	bool							bIsCamReady;
 	string						savePath;
 
@@ -71,6 +73,13 @@ public:
 	int		SetFrameRate(float rate);
 
 	int 	SetGpioUserMode(float value);
+	int 	SetGpioStrobeMode();
+	int 	SetGainLow(float value);
+	int 	SetGainHigh(float value);
+	int 	SetExposureMax(float value);
+	int 	SetExposureLow(float value);
+	int 	SetExposureHigh(float value);
+	
 
 	int		DoConnection();
 	int 	DoDisconnection();

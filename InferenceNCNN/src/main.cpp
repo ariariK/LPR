@@ -2,6 +2,7 @@
 #include "inference_ncnn/l_detect.h"
 #include "inference_ncnn/utils.h"
 #include "ipcs.h"
+#include "sha256.h"
 
 #include "opencv2/opencv.hpp"
 #include <time.h>
@@ -10,6 +11,8 @@
 #include <sys/sysinfo.h>
 #include <unistd.h>
 #include <string>
+#include <sqlite3.h>
+#include <chrono>
 
 #define __USE_GNU
 #include <sched.h>
@@ -19,7 +22,13 @@
 #include <queue>
 #include <sys/time.h>
 
+#define LOG_NAME	"[LPR]"
+
 #define THREAD_MAX_NUM                                                      3
+#define DB_NAME "/oem/db/lpr.db"
+
+using namespace std;
+using namespace chrono;
 
 pthread_mutex_t mutex;                                                      // pthread_mutex_t for thread save(frame_queue, boxes_queue)
 krlpr::l_ocr 	*lpr_ocr;                                                   // lpr_ocr class
@@ -28,7 +37,9 @@ std::queue< std::vector<krlpr::krlprutils::TargetBox> > boxes_queue;        // a
 std::queue<cv::Mat> frame_queue;                                            // a queue transfer read frame from l_detect thread to l_ocr thread
 int is_running;                                                             // control thread is running or stop(true is running, false is stop)
 
-using namespace std;
+sqlite3 *db;                                                                // sqlite db handler
+string  msg;
+int coolTime = 60;  // def: 60초
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IPCs
@@ -50,6 +61,10 @@ struct message msq;
 struct lpdr_data{
     long timestamp;
     char carNo[64];
+
+    // db info
+    int code;   
+    char reserved[8];
 };
 struct message_lpdr{
     long msg_type;
@@ -82,6 +97,140 @@ bool isNumber(const string& str)
     return true;
 }
 
+int code_value = 0;
+static int callback(
+    void *bIsWanted,
+    int argc,
+    char **argv, 
+    char **azColName)
+{    
+    // table name : wanted
+    // col1 : carNo
+    // col2 : code
+    // col3 : reserved
+
+    bool *b = (bool*)bIsWanted;
+    *b = true;
+    
+    for (int i = 0; i < argc; i++)
+    {
+        //printf("[%d]%s = %s\n", i, azColName[i], argv[i] ? argv[i] : "NULL");
+        if (strncmp(azColName[i], "code", 4) == 0)
+        {
+            code_value = atoi(argv[i]);
+        }
+    }
+    
+    //printf("\n");
+    
+    return 0;
+}
+
+bool checkCoolTime(string carNo)
+{
+    static string preNo;
+    static system_clock::time_point start;
+    static system_clock::time_point end;
+
+    if(preNo.compare(carNo) == 0)   // same
+    {
+        end = system_clock::now();
+        nanoseconds nano = end - start;
+        int64_t elapsed_sec = nano.count()/1000000000;
+        if(elapsed_sec < coolTime) // wait...
+        {
+            INFO_LOG(string("Wait~~~Cool time"));
+            return false;
+        }
+    }
+
+    start = system_clock::now();
+    preNo = carNo;
+
+    return true;
+
+}
+
+std::string wanted_lp = "";
+bool isWanted(const string& str)
+{  
+#if true    // w/ sqlite database
+    bool bIsWanted = 0;
+    char *err_msg = 0;
+    sqlite3_stmt *res;
+
+    // get target value from db
+    string encrypt = sha256(str);
+    //cout << "encrypt : " << encrypt << endl;
+
+    char sql_buf[128] = {0, };
+    sprintf(sql_buf, "SELECT * FROM wanted where carNo=\'%s\';", encrypt.c_str());
+    int rc = sqlite3_exec(db, sql_buf, callback, &bIsWanted, &err_msg);
+    if (rc != SQLITE_OK )
+    {
+        //fprintf(stderr, "Failed to select data\n");
+        //fprintf(stderr, "SQL error: %s\n", err_msg);
+
+        ERR_LOG(string("Failed to select data"));
+        msg = string_format("SQL error: %s", err_msg);
+        ERR_LOG(msg);
+
+        sqlite3_free(err_msg);
+
+        return false;
+    } 
+
+    //return bIsWanted;
+    return bIsWanted ? checkCoolTime(str) : false;
+
+#else   // w/o database
+    cout << "wanted_lp : " << wanted_lp << endl;
+    if(wanted_lp.size() == 0)   // w/ db
+    {
+        // db connection
+        std::string target = "";
+
+        if (target.compare(str) == 0)
+        {
+            return true;
+        }
+        else 
+        {
+            return false;
+        }
+    }
+    else                        // w/o db(직접설정, 테스트)
+    {
+        if (wanted_lp.compare(str) == 0)
+        {
+            return true;
+        }
+        else 
+        {
+            return false;
+        }
+    }
+#endif
+}
+
+int deleteFile(string fname)
+{
+    if (remove(fname.c_str()) != 0)
+    {
+        //cout << "[POP_Queue]Error deleting file : " << fInfo.fileOrg << endl;
+        msg = string_format("[POP_Queue]Error deleting file : %s", fname.c_str());
+        ERR_LOG(msg);
+    }
+    else
+    {
+        //cout << "[POP_Queue]File successfully deleted : " << fInfo.fileOrg << endl;
+        msg = string_format("[POP_Queue]File successfully deleted : %s", fname.c_str());
+        INFO_LOG(msg);
+    }
+
+    return 1;
+}
+
 void* thread_lpr(void* arg)
 {
     cv::Mat frame_gray;
@@ -108,6 +257,16 @@ void* thread_lpr(void* arg)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    INFO_LOG(string("####################################################################")); 
+    msg = string_format("sqlite3 version = %s", sqlite3_libversion());
+    INFO_LOG(msg);
+    INFO_LOG(string("####################################################################")); 
+    int rc = sqlite3_open(DB_NAME, &db);
+    msg = string_format("DB Open(%d) : %s", rc, DB_NAME);
+    INFO_LOG(msg);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifdef USE_Q_FOR_FILELIST
     std::queue<file_info> fileQueue;
 #endif
@@ -116,23 +275,31 @@ void* thread_lpr(void* arg)
     while(is_running) 
     {
         boxes.clear();
-#if true   // false = for test(using image)
+#if true   // real code
+        
         // get image
-        Sm_Res->SharedMemoryRead((char *)&msq.data);
+        if (Sm_Res->SharedMemoryRead((char *)&msq.data) < 0)
+        {
+            Sm_Res->SharedMemoryInit(); 
+            EMERG_LOG(string("[Error!!!]SharedMemoryRead()"));
+            break;
+        }
         capWidth    = msq.data.capWidth;
         capHeight   = msq.data.capHeight;
     
         if (Sm_Grab->SharedMemoryRead((char *)buffer) < 0)
         {
             Sm_Grab->SharedMemoryInit();
-            fprintf(stderr, "[Error!!!]SharedMemoryRead()\n");  
+            EMERG_LOG(string("[Error!!!]SharedMemoryRead()"));
+            break;
         }
+
         frame_gray = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
-        //cv::resize(img, img, cv::Size(640, 480));
-        // resize to 640 x 580
         cvtColor(frame_gray, frame_bgr, cv::COLOR_GRAY2BGR);
+
 #else   // false = for test(using image)
         // from image(for test)
+        INFO_LOG(string("################## DEBUG MODE ##############################"));
         frame_bgr = cv::imread("/oem/test_data/images.jpg");
         cv::cvtColor(frame_bgr, frame_gray, cv::COLOR_BGR2GRAY);
 #endif        
@@ -140,10 +307,14 @@ void* thread_lpr(void* arg)
         start_lpd = clock();
         lpr_detect->run_inference(frame_bgr, boxes);            // fill data an run ai model, get result
         end_lpd = clock();
-        fprintf(stderr, "Thread[ldetect] boxes: size=%d\n", boxes.size());
+        //fprintf(stderr, "[V1115]Thread[ldetect] boxes: size=%d\n", boxes.size());
+        msg = string_format("Thread[ldetect] boxes: size=%d", boxes.size());
+        DEBUG_LOG(msg);
 
         mseconds_lpd  =(double)(end_lpd - start_lpd)/CLOCKS_PER_SEC;
-        fprintf(stderr, "Thread[ldetect] Use time is: %.8f\n", mseconds_lpd);
+        //fprintf(stderr, "Thread[ldetect] Use time is: %.8f\n", mseconds_lpd);
+        msg = string_format("Thread[ldetect] Use time is: %.8f", mseconds_lpd);
+        DEBUG_LOG(msg);
 
         // update : 번호판 확인
         if (boxes.size()) 
@@ -154,12 +325,15 @@ void* thread_lpr(void* arg)
             start_lpr = clock();
             lpr_ocr->run_inference(boxes, frame_gray);   // run lp ocr and draw result in the frame
             end_lpr = clock();
-            fprintf(stderr, "Thread[locr] boxes: size=%d\n", boxes.size());
+            //fprintf(stderr, "Thread[locr] boxes: size=%d\n", boxes.size());
+            msg = string_format("Thread[locr] boxes: size=%d", boxes.size());
+            DEBUG_LOG(msg);
 
             // matched
             int ib = -1; // index of box
             if (boxes.size())
             {
+                bool bIsWanted = false;
                 for (int i=0; i < boxes.size();i++)
                 { 
                     int len = boxes[i].lpr_string.size();
@@ -167,11 +341,27 @@ void* thread_lpr(void* arg)
                     // extract to digit part(4자리 숫자)
                     std::string digit = boxes[i].lpr_string.substr(len-4, len-1);
 
-                    fprintf(stderr, "license plate number[%d] : %s([flag:%d]digit = %s)\n", i, boxes[i].lpr_string.c_str(), isNumber(digit), digit.c_str());
+                    //fprintf(stderr, "license plate number[%d] : %s([flag:%d]digit = %s)\n", i, boxes[i].lpr_string.c_str(), isNumber(digit), digit.c_str());
+                    msg = string_format("license plate number[%d] : %s([flag:%d]digit = %s)", i, boxes[i].lpr_string.c_str(), isNumber(digit), digit.c_str());
+                    INFO_LOG(msg);
                     //fprintf(stderr, "x1:%d, y1:%d, x2:%d, y2:%d\n", boxes[i].x1, boxes[i].y1, boxes[i].x2, boxes[i].y2);
                     //std::cout << "lpr_string : " << boxes[i].lpr_string << std::endl;
                     if(isNumber(digit))
                     {
+                        // 수배차량 조회
+                        bIsWanted = isWanted(boxes[i].lpr_string.c_str());
+                        if(bIsWanted)
+                        {
+                            //std::cout << "수배차량 : " << boxes[i].lpr_string.c_str() << std::endl;
+                            msg = string_format("수배차량 : %s", boxes[i].lpr_string.c_str());
+                        }
+                        else
+                        {
+                            //std::cout << "일반차량 : " << boxes[i].lpr_string.c_str() << std::endl;
+                            msg = string_format("일반차량 : %s", boxes[i].lpr_string.c_str());
+                        }
+                        INFO_LOG(msg);
+
                         ib = i;
                         break;  // big one
                     }
@@ -188,7 +378,7 @@ void* thread_lpr(void* arg)
                     std::cout << "lpr_string[1] = " << boxes[i].lpr_string.at(1) << std::endl;
                     std::cout << "lpr_string[0] = " << boxes[i].lpr_string.at(0) << std::endl;
 #endif
-                }
+                }   // for
 
                 //////////////////////////////////////////////////////////////////////////////////////////////
                 // 1. copy to /userdata/result/timestamp_0.jpg
@@ -197,29 +387,19 @@ void* thread_lpr(void* arg)
                 //////////////////////////////////////////////////////////////////////////////////////////////
                 file_info fInfo;
                 int qsize = Mq_Lpdr->MessageQueueQNum();
-                if(ib > -1 && qsize >= MQ_LPDR_MAX_QSIZE)   // delete
+                // message queue full
+                // old data : delete
+                // new data : add
+                if(bIsWanted && ib > -1 && qsize >= MQ_LPDR_MAX_QSIZE)   // delete(old)
                 {
                     Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr);
                     string carNo(msq_lpdr.data.carNo);
                     fInfo.fileOrg = "/userdata/result/" + to_string(msq_lpdr.data.timestamp) + "_" + carNo + "_0.jpg";
                     fInfo.fileLpd = "/userdata/result/" + to_string(msq_lpdr.data.timestamp) + "_" + carNo + "_1.jpg";
-                    if (remove(fInfo.fileOrg.c_str()) != 0)
-                    {
-                        cout << "[POP_Queue]Error deleting file : " << fInfo.fileOrg << endl;
-                    }
-                    else
-                    {
-                        cout << "[POP_Queue]File successfully deleted : " << fInfo.fileOrg << endl;
-                    }
-                    
-                    if (remove(fInfo.fileLpd.c_str()) != 0)
-                    {
-                        cout << "[POP_Queue]Error deleting file : " << fInfo.fileLpd << endl;
-                    }
-                    else
-                    {
-                        cout << "[POP_Queue]File successfully deleted : " << fInfo.fileLpd << endl;
-                    }
+
+                    // deleteFile()
+                    deleteFile(fInfo.fileOrg);
+                    deleteFile(fInfo.fileLpd);
                 }
 
                 // add. new item
@@ -243,14 +423,41 @@ void* thread_lpr(void* arg)
                     cv::imwrite(fInfo.fileLpd.c_str(), lpd);
                     cv::imwrite(fname_tmp.c_str(), lpd);
 
+                    // 수배정보에 관계없이 기록
                     msq_lpdr.msg_type = 1;
                     msq_lpdr.data.timestamp = msecs_time;
                     memset(msq_lpdr.data.carNo, 0, sizeof(msq_lpdr.data.carNo));
                     strncpy(msq_lpdr.data.carNo, boxes[ib].lpr_string.c_str(), boxes[ib].lpr_string.size());
+                   
+                    msq_lpdr.data.code = code_value;    // from database(table:wanted, col[0,1,2], col[1]:code)
+                    //cout << "msq_lpdr.data.carNo : " << msq_lpdr.data.carNo << endl;
+                    //cout << "msq_lpdr.data.code : " << msq_lpdr.data.code << endl;
+                    msg = string_format("DB - carNo:%s, code:%d", msq_lpdr.data.carNo, msq_lpdr.data.code);
+                    INFO_LOG(msg);
+
 #ifdef USE_Q_FOR_FILELIST
                     fileQueue.push(fInfo);
 #endif
-                    Mq_Lpdr->MessageQueueWrite((char *)&msq_lpdr);
+                    // add. 2021.11.23
+                    // 수배대상에 대해서만 소켓통신 준비
+                    if(bIsWanted)
+                    {
+                        // 중복체크
+                        //if(checkCoolTime(msq_lpdr.data.carNo))
+                        {
+                            msg = string_format("MessageQueueWrite - carNo:%s, code:%d", msq_lpdr.data.carNo, msq_lpdr.data.code);
+                            INFO_LOG(msg);
+                            cout << "수배차량 : " << msq_lpdr.data.carNo << ", code = " << msq_lpdr.data.code << endl;
+                            Mq_Lpdr->MessageQueueWrite((char *)&msq_lpdr);
+                        }
+                    }
+                    else
+                    {
+                        // file delete
+                        deleteFile(fInfo.fileOrg);
+                        deleteFile(fInfo.fileLpd);
+                    }
+
                     #if false
                     // "33머 9999", "size = 9"
                     //cout << "lpr result : " << boxes[ib].lpr_string.c_str() << ", len = " << strlen(boxes[ib].lpr_string.c_str()) << endl;
@@ -279,8 +486,7 @@ void* thread_lpr(void* arg)
                     #endif
 
                     //Sm_Lpr->SharedMemoryWrite((char*)msq_lpdr.data.carNo, strlen(msq_lpdr.data.carNo));
-                    Sm_Lpr->SharedMemoryWrite((char*)msq_lpdr.data.carNo, MEM_SIZE_SM_LPR);
-                    
+                    Sm_Lpr->SharedMemoryWrite((char*)msq_lpdr.data.carNo, MEM_SIZE_SM_LPR); // to preview 하단 검출결과 표시 용
 
                     // rename
                     rename("/oem/Screen_shot/0_tmp.jpg", "/oem/Screen_shot/0.jpg");
@@ -290,17 +496,23 @@ void* thread_lpr(void* arg)
                 
             }
             mseconds_lpr  =(double)(end_lpr - start_lpr)/CLOCKS_PER_SEC;
-            fprintf(stderr, "Thread[locr] Use time is: %.8f\n\n", mseconds_lpr);
+            //fprintf(stderr, "Thread[locr] Use time is: %.8f\n\n", mseconds_lpr);
+            msg = string_format("Thread[locr] Use time is: %.8f", mseconds_lpr);
+            DEBUG_LOG(msg);
 
             cv::imwrite("/oem/Screen_shot/detect.jpg", frame_gray);
         }
 
     }
 
+    sqlite3_close(db);
+
     SAFE_DELETE(Sm_Grab);
     SAFE_DELETE(Sm_Res);
     SAFE_DELETE(Sm_Lpr);
     SAFE_DELETE(Mq_Lpdr);
+
+    INFO_LOG(string("EXIT!!!, LPR Thread!!!")); 
 
     return nullptr;
 }
@@ -314,8 +526,14 @@ int main(int argc, char** argv) {
     string strDetectModelBin = "";
     string strDetectModelParam = "";
     string strOCRModel = "";
-    while ((res=getopt(argc, argv, "d:p:o:h")) != -1) {
+    while ((res=getopt(argc, argv, "t:w:d:p:o:h")) != -1) {
 		switch(res) {
+        case 't':
+            coolTime = stoi(optarg);
+        break;
+        case 'w':   // wanted 정보(데모용)
+            wanted_lp = optarg;
+        break;
 		case 'd':   // lpd ai model(file full path)
 			strDetectModelBin = optarg;
 		break;
@@ -337,7 +555,23 @@ int main(int argc, char** argv) {
 		}
 	}
 
-        
+    openlog(LOG_NAME, LOG_PID, LOG_USER);        
+    msg = "LOG_LEVEL = " + to_string(LOG_LEVEL);
+	INFO_LOG(msg);
+
+    // config params
+	INFO_LOG(string("#################################################################################################"));
+	INFO_LOG(string("# InferenceNCNN Configs                                                                              #"));
+	INFO_LOG(string("#################################################################################################"));
+    msg = string_format("coolTime : %d", coolTime);
+    INFO_LOG(msg);
+    msg = string_format("strDetectModelBin : %s", strDetectModelBin.c_str());
+    INFO_LOG(msg);
+    msg = string_format("strDetectModelParam : %s", strDetectModelParam.c_str());
+    INFO_LOG(msg);
+    msg = string_format("strOCRModel : %s", strOCRModel.c_str());
+    INFO_LOG(msg);
+    INFO_LOG(string("#################################################################################################"));
 
     // LPD Model
     lpr_detect 	= new krlpr::l_detect(strDetectModelParam, strDetectModelBin);         //Load lpr model
@@ -417,6 +651,8 @@ int main(int argc, char** argv) {
 		cv::imwrite("./output.jpg", src);
 	}
 #endif
+
+    closelog();
 
 	return 0;
 }

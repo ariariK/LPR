@@ -258,6 +258,33 @@ src/main.cpp.s:
 	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
+src/sha256.o: src/sha256.cpp.o
+
+.PHONY : src/sha256.o
+
+# target to build an object file
+src/sha256.cpp.o:
+	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o
+.PHONY : src/sha256.cpp.o
+
+src/sha256.i: src/sha256.cpp.i
+
+.PHONY : src/sha256.i
+
+# target to preprocess a source file
+src/sha256.cpp.i:
+	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.i
+.PHONY : src/sha256.cpp.i
+
+src/sha256.s: src/sha256.cpp.s
+
+.PHONY : src/sha256.s
+
+# target to generate assembly for a file
+src/sha256.cpp.s:
+	$(MAKE) -f CMakeFiles/InferenceNCNN.dir/build.make CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.s
+.PHONY : src/sha256.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -282,6 +309,9 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/sha256.o"
+	@echo "... src/sha256.i"
+	@echo "... src/sha256.s"
 .PHONY : help
 
 

@@ -12,6 +12,13 @@ SET(CMAKE_C_COMPILER ${armcc})
 SET(CMAKE_CXX_COMPILER ${armgg})
 SET(CMAKE_LINKER ${armlink})
 SET(CMAKE_C_LINK_EXECUTABLE ${armlink})
+
+#define 추가
+# for release version
+add_definitions(-DLOG_LEVEL=6)
+# for debug version
+#add_definitions(-DLOG_LEVEL=7)
+
 ########################################################################################################################
 
 

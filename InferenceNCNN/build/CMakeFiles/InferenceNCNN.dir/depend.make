@@ -806,6 +806,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: ../../include/ncnn/vulkan_header_fi
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: ../src/Typedef.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: ../src/ipcs.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: ../src/main.cpp
+CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: ../src/sha256.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/alloca.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/bitsperlong.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/int-ll64.h
@@ -1038,6 +1039,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/opencv2/videoio/videoio_c.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/pthread.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/sched.h
+CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/sqlite3.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/stdc-predef.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/stdint.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/stdio.h
@@ -1085,4 +1087,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/tensorflow_src/tensorflow/lite
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/tensorflow_src/tensorflow/lite/tools/make/downloads/flatbuffers/include/flatbuffers/stl_emulation.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/tensorflow_src/tensorflow/lite/type_to_tflitetype.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/tensorflow_src/tensorflow/lite/util.h
+
+CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o: ../src/sha256.cpp
+CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o: ../src/sha256.h
 

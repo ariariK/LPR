@@ -16,9 +16,11 @@
 #include "Typedef.h"
 #include "CameraManager.h"
 
+#define LOG_NAME	"[GigEGrab]"
 int main(int argc, char** argv)
 {
 	// 프로그램 초기값
+	string msg;
 	int nCapWidth 			= GIGE_CAMERA_CAP_WIDTH_FHD;
 	int nCapHeight			= GIGE_CAMERA_CAP_HEIHGT_FHD;
 	int nOffsetX				= GIGE_CAMERA_OFFSET_X;
@@ -26,10 +28,18 @@ int main(int argc, char** argv)
 	bool bFrameRateMode = GIGE_CAMERA_FRAME_RATE_ENABLE ? true : false;
 	float fFrameRate		= GIGE_CAMERA_FRAME_RATE;
 	bool bSaveEnable		= false;
-	float fNightGain		= 20.0;
+	float fNightGainLow		=  5.0;
+	float fNightGainHigh	= 20.0;
+	float fExposureMax  = 9000.0;
+	float fExposureLow	= 5000.0;
+	float fExposureHigh	= 9000.0;
 	string savePath;
 
-	openlog("[LPR-FLIR]", LOG_CONS, LOG_USER);
+	msg = "LOG_LEVEL = " + to_string(LOG_LEVEL);
+	INFO_LOG(msg);
+
+	//openlog(LOG_NAME, LOG_CONS, LOG_USER);
+	openlog(LOG_NAME, LOG_PID, LOG_USER);
 
 	// Parse parameters
 	// std::ifstream is RAII, i.e. no need to call close
@@ -97,9 +107,25 @@ int main(int argc, char** argv)
 			{
 				fFrameRate = stof(value);
 			}
-			else if (name.compare("nightGain") == 0)
+			else if (name.compare("nightGainLow") == 0)
 			{
-				fNightGain = stof(value);
+				fNightGainLow = stof(value);
+			}
+			else if (name.compare("nightGainHigh") == 0)
+			{
+				fNightGainHigh = stof(value);
+			}
+			else if (name.compare("exposureMax") == 0)
+			{
+				fExposureMax = stof(value);
+			}
+			else if (name.compare("exposureLow") == 0)
+			{
+				fExposureLow = stof(value);
+			}
+			else if (name.compare("exposureHigh") == 0)
+			{
+				fExposureHigh = stof(value);
 			}
 			else if (name.compare("saveEnable") == 0)
 			{
@@ -109,40 +135,66 @@ int main(int argc, char** argv)
 			{
 				savePath = value;
 			}
-			
 			/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 		};
 
 		cFile.close();
 	}
 	else 
 	{
-		cout << "Couldn't open config file for reading..." << endl;
-    cout << "Run defalut mode" << endl;
+		WARN_LOG(string("Couldn't open config file for reading..."));
+		EMERG_LOG(string("Run defalut mode"));
+
+		return -1;
 	}
+	// config params
+	INFO_LOG(string("#################################################################################################"));
+	INFO_LOG(string("# GigEGrab Configs                                                                              #"));
+	INFO_LOG(string("#################################################################################################"));
+	msg = ">> capWidth : " + to_string(nCapWidth);
+	INFO_LOG(msg);
+	msg = ">> nCapHeight : " + to_string(nCapHeight);
+	INFO_LOG(msg);
+	msg = ">> nOffsetX : " + to_string(nOffsetX);
+	INFO_LOG(msg);
+	msg = ">> nOffsetY : " + to_string(nOffsetY);
+	INFO_LOG(msg);
+	msg = ">> fFrameRate : " + to_string(fFrameRate);
+	INFO_LOG(msg);
+	msg = ">> fNightGainLow : " + to_string(fNightGainLow);
+	INFO_LOG(msg);
+	msg = ">> fNightGainHigh : " + to_string(fNightGainHigh);
+	INFO_LOG(msg);
+	msg = ">> fExposureMax : " + to_string(fExposureMax);
+	INFO_LOG(msg);
+	msg = ">> fExposureLow : " + to_string(fExposureLow);
+	INFO_LOG(msg);
+	msg = ">> fExposureHigh : " + to_string(fExposureHigh);
+	INFO_LOG(msg);
+	INFO_LOG(string("#################################################################################################"));
 
 	// 객체 생성
 	CameraManager *pCamMan = new CameraManager();
 
 	// 초기화 - 카메라 검색 및 상태 확인
+	INFO_LOG(string("#################################################################################################"));
+	INFO_LOG(string("Starting initialize GigE Camera!!!"));
 	if (!pCamMan->Init())
 	{
-		cout << "Failure initialize GigE Camera!!!" << endl;
+		//cout << "Failure initialize GigE Camera!!!" << endl;
+		EMERG_LOG(string("Failure initialize GigE Camera!!!, Exit Program!!!"));
+		INFO_LOG(string("#################################################################################################"));
+
 		SAFE_DELETE(pCamMan);
 
 		closelog();
 		return -1;
 	}
-
+	
 	// Ready Camera
 	pCamMan->CameraReady(0);
 
 	// Setting Camera Format
-	//pCamMan->SetCapWidth(GIGE_CAMERA_CAP_WIDTH_FHD);
-	//pCamMan->SetCapHeight(GIGE_CAMERA_CAP_HEIHGT_FHD);
-	//pCamMan->SetCapWidth(GIGE_CAMERA_CAP_WIDTH_HD);
-	//pCamMan->SetCapHeight(GIGE_CAMERA_CAP_HEIHGT_HD);
 	pCamMan->SetCapWidth(nCapWidth);
 	pCamMan->SetCapHeight(nCapHeight);
 
@@ -152,11 +204,20 @@ int main(int argc, char** argv)
 	pCamMan->SetFrameRateMode(bFrameRateMode);
 	pCamMan->SetFrameRate(fFrameRate);
 
-	pCamMan->SetGpioUserMode(fNightGain);
-
-	// Running Grabbing
+	//pCamMan->SetGpioUserMode(fNightGain);
+	pCamMan->SetGpioStrobeMode();
+	pCamMan->SetGainLow(fNightGainLow);
+	pCamMan->SetGainLow(fNightGainLow);
+	pCamMan->SetGainHigh(fNightGainHigh);
+	pCamMan->SetExposureMax(fExposureMax);
+	pCamMan->SetExposureLow(fExposureLow);
+	pCamMan->SetExposureHigh(fExposureHigh);
+	
 	pCamMan->SetSaveEnable(bSaveEnable);
 	pCamMan->SetSavePath(savePath);
+	INFO_LOG(string("#################################################################################################"));
+
+	// Running Grabbing
 	pCamMan->RunGrabbing();
 
 	// Release Camera

@@ -83,6 +83,10 @@ public:
   struct lpdr_data{
       long timestamp;
       char carNo[64];
+      
+      // db info
+      int code;   
+      char reserved[8];
   };
   struct message_lpdr{
       long msg_type;

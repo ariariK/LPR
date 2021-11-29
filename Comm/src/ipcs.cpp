@@ -161,7 +161,9 @@ int Ipcs::MessageQueueCreate()
     return -1;
   }
 
-  fprintf(stderr, "MessageQueueCreate() : msgget(%d) successful\n", key_num);
+  //fprintf(stderr, "MessageQueueCreate() : msgget(%d) successful\n", key_num);
+  msg = string_format("MessageQueueCreate() : msgget(%d) successful\n", key_num);
+  INFO_LOG(msg);
 
   return 1;
 }

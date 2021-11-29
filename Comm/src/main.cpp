@@ -25,21 +25,136 @@
 #include <pthread.h>
 #include <queue>
 
+#define LOG_NAME	"[Comm]"
+
 #define THREAD_MAX_NUM  3
+bool bIsRunningSocketMan;
 bool bIsRunningSocketSend;
 bool bIsRunningSocketRecv;
 bool bIsRunningUsage;
 pthread_mutex_t mutex_socket;
 
+string msg;
+
 struct lpdr_data{
     long timestamp;
     char carNo[64];
+
+    // db info
+    int code;   
+    char reserved[8];
 };
 struct message_lpdr{
     long msg_type;
     struct lpdr_data data;
 };
 struct message_lpdr msq_lpdr;
+
+void* thread_socket_man(void* args)
+{
+  CommSocket* comm = (CommSocket*)args;
+
+  Ipcs* Mq_Lpdr   = new Ipcs(KEY_NUM_MQ_LPDR, 0);
+  Mq_Lpdr->MessageQueueInit();
+
+  string log;
+  string fname;
+  while(bIsRunningSocketMan)
+  {
+    int qnum = Mq_Lpdr->MessageQueueQNum();
+    //cout << "mq_lpdr queue size = " << qnum << endl;
+
+    int sent  = 0;
+    if(qnum)  // not empty
+    {
+      //pthread_mutex_lock(&mutex_socket);
+      Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr);
+      //cout << "msq_lpdr.data.timestamp = " << msq_lpdr.data.timestamp << endl;   
+      //cout << "msq_lpdr.data.code = " << msq_lpdr.data.code << endl;   
+      msg = string_format("msq_lpdr.data.timestamp = %ld, msq_lpdr.data.code = %d", msq_lpdr.data.timestamp, msq_lpdr.data.code);
+      DEBUG_LOG(msg);
+
+      // SetFileInfo
+      comm->SetDeleteInfo((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo));
+
+      // S0 : Send Header
+      sent = comm->SendHeader('S');
+      if (sent < 0)  
+      {
+        cout << "broken socket, exit..." << endl;
+        //pthread_mutex_unlock(&mutex_socket);
+
+        // delete
+        comm->UpdateImageList();
+        break;
+      }
+
+      // S1 : send CarInfo
+      sent = comm->SendPacketPatrolCarInfoV2((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo), msq_lpdr.data.code);
+      if (sent < 0)  
+      {
+        cout << "broken socket, exit..." << endl;
+        //pthread_mutex_unlock(&mutex_socket);
+
+        // delete
+        comm->UpdateImageList();
+        break;
+      }
+
+      // S3 : Send Header
+      sent = comm->SendHeader('I');
+
+      // S4 : send CarInfo & Image(ORG)
+      sent = comm->SendPacketImageOrg();
+      if (sent < 0)  
+      {
+        cout << "broken socket, exit..." << endl;
+        //pthread_mutex_unlock(&mutex_socket);
+
+        // delete
+        comm->UpdateImageList();
+        break;
+      }
+
+      // S5 : Send Header
+      sent = comm->SendHeader('I');
+      if (sent < 0)  
+      {
+        cout << "broken socket, exit..." << endl;
+        //pthread_mutex_unlock(&mutex_socket);
+        break;
+      }
+
+      // S6 : send CarInfo & Image(LPD)
+      sent = comm->SendPacketImageLpd();
+      if (sent < 0)  
+      {
+        cout << "broken socket, exit..." << endl;
+        //pthread_mutex_unlock(&mutex_socket);
+
+        // delete
+        comm->UpdateImageList();
+        break;
+      }
+      // delete
+      comm->UpdateImageList();
+
+      //pthread_mutex_unlock(&mutex_socket);
+
+      cout << endl;
+    }
+    else
+    {
+      usleep(10000);
+    }
+  }
+  Mq_Lpdr->MessageQueueFree();
+
+  log = "EXIT Thread(socket_man)";
+  INFO_LOG(log);
+
+  return nullptr;
+}
 
 
 void* thread_socket_send(void* args)
@@ -164,6 +279,8 @@ int main(int argc, char** argv)
   string log;
   int CPU_NUM = sysconf(_SC_NPROCESSORS_CONF);
 
+  openlog(LOG_NAME, LOG_PID, LOG_USER);
+
   log = "System has " + to_string(CPU_NUM) + "processor(s).";
   INFO_LOG(log);
 
@@ -221,6 +338,24 @@ int main(int argc, char** argv)
   }
 
   // thread create
+#if true  // new version
+  comm->patrolHeader.HEADER[0] = 0xAA;
+  comm->patrolHeader.HEADER[1] = 0x55;
+  comm->patrolHeader.HEADER[2] = 0xFE;
+
+  bIsRunningSocketMan   = true;
+  bIsRunningSocketSend  = false;
+  bIsRunningSocketRecv  = false;
+  bIsRunningUsage       = false;
+  pthread_mutex_init(&mutex_socket, NULL);     // init mutex
+  pthread_t thread[1];
+  pthread_create(&thread[0], NULL, thread_socket_man, comm);
+
+  // thread join
+  for(int i = 0; i < 1; i++) {
+        pthread_join(thread[i], NULL);
+    }
+#else
   bIsRunningSocketSend  = true;
   bIsRunningSocketRecv  = true;
   bIsRunningUsage       = true;
@@ -234,7 +369,7 @@ int main(int argc, char** argv)
   for(int i = 0; i < THREAD_MAX_NUM; i++) {
         pthread_join(thread[i], NULL);
     }
-
+#endif
   ////////////////////////////////////////////////////////////////////////////////////
   // Release
   ////////////////////////////////////////////////////////////////////////////////////
@@ -243,6 +378,8 @@ int main(int argc, char** argv)
   SAFE_DELETE(comm);
   SAFE_DELETE(usage);
   SAFE_DELETE(Mq_Grab);
+
+  closelog();
     
   return 1;
 }

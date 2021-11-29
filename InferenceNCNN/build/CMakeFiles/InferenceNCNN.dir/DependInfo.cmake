@@ -9,8 +9,14 @@ set(CMAKE_DEPENDS_CHECK_CXX
   "/images/apps/LPR/InferenceNCNN/src/lpr_demo/l_ocr.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_ocr.cpp.o"
   "/images/apps/LPR/InferenceNCNN/src/lpr_demo/utils.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/lpr_demo/utils.cpp.o"
   "/images/apps/LPR/InferenceNCNN/src/main.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/main.cpp.o"
+  "/images/apps/LPR/InferenceNCNN/src/sha256.cpp" "/images/apps/LPR/InferenceNCNN/build/CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
+
+# Preprocessor definitions for this target.
+set(CMAKE_TARGET_DEFINITIONS_CXX
+  "LOG_LEVEL=6"
+  )
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH

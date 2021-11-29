@@ -807,6 +807,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o
  /images/apps/LPR/InferenceNCNN/src/Typedef.h
  /images/apps/LPR/InferenceNCNN/src/ipcs.h
  /images/apps/LPR/InferenceNCNN/src/main.cpp
+ /images/apps/LPR/InferenceNCNN/src/sha256.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/alloca.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/bitsperlong.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/asm-generic/int-ll64.h
@@ -1039,6 +1040,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/opencv2/videoio/videoio_c.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/pthread.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/sched.h
+ /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/sqlite3.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/stdc-predef.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/stdint.h
  /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/stdio.h
@@ -1086,3 +1088,6 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o
  /opt/tensorflow_src/tensorflow/lite/tools/make/downloads/flatbuffers/include/flatbuffers/stl_emulation.h
  /opt/tensorflow_src/tensorflow/lite/type_to_tflitetype.h
  /opt/tensorflow_src/tensorflow/lite/util.h
+CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o
+ /images/apps/LPR/InferenceNCNN/src/sha256.cpp
+ /images/apps/LPR/InferenceNCNN/src/sha256.h

@@ -25,19 +25,17 @@ Ipcs::~Ipcs()
 
 int Ipcs::SharedMemoryCreate()
 {
-  msg = "SharedMemoryCreate()";
+  msg = string_format("SharedMemoryCreate() : ID = %d", key_num);
 	INFO_LOG(msg);
 
 	if ((shmid = shmget((key_t)key_num, mem_size, IPC_CREAT| IPC_EXCL | 0666)) == -1) 
 	{
-		msg = "There was shared memory";
-		INFO_LOG(msg);
+		INFO_LOG(string("There was shared memory"));
 
 		shmid = shmget((key_t)key_num, mem_size, IPC_CREAT| 0666);
 		if(shmid == -1)
 		{
-			msg = "[0] Shared memory create fail";
-			ERR_LOG(msg);
+			ERR_LOG(string("Shared memory create fail"));
 
 			return -1;
 		}
@@ -46,8 +44,7 @@ int Ipcs::SharedMemoryCreate()
 			shmid = shmget((key_t)key_num, mem_size, IPC_CREAT| 0666);
 			if(shmid == -1)
 			{
-				msg = "[1] Shared memory create fail";
-				ERR_LOG(msg);
+				ERR_LOG(string("Shared memory create fail"));
 
 				return -1;
 			}
@@ -59,10 +56,12 @@ int Ipcs::SharedMemoryCreate()
 
 int Ipcs::SharedMemoryInit()
 {
-  printf("SharedMemoryInit() : key = %d\n", key_num);
+  msg = string_format("SharedMemoryInit() : ID = %d", key_num);
+	INFO_LOG(msg);
+
   if((shmid = shmget((key_t)key_num, 0, 0)) == -1)
   {
-      perror("Shmid failed");
+      ERR_LOG(string("Shmid failed"));
 
       return -1;
   }
@@ -76,7 +75,7 @@ int Ipcs::SharedMemoryRead(char *sMemory)
   
   if((shmaddr = shmat(shmid, (void *)0, 0)) == (void *)-1)
   {
-      perror("Shmat failed");
+      ERR_LOG(string("Shmat failed"))
       return -1;
   }
 
@@ -84,7 +83,7 @@ int Ipcs::SharedMemoryRead(char *sMemory)
   
   if(shmdt(shmaddr) == -1)
   {
-      perror("Shmdt failed");
+      ERR_LOG(string("Shmdt failed"))
       return -1;
   }
   
@@ -96,16 +95,14 @@ int Ipcs::SharedMemoryWrite(char *shareddata, int size)
   void *shmaddr;
 	if(size > mem_size)
 	{
-		msg = "Shared memory size over";
-		ERR_LOG(msg);
+		ERR_LOG(string("Shared memory size over"));
 
 		return -1;
 	}
 
 	if((shmaddr = shmat(shmid, (void *)0, 0)) == (void *)-1) 
 	{
-		msg = "Shmat failed";
-		ERR_LOG(msg);
+		ERR_LOG(string("Shmat failed"));
 
 		return -1;
 	}
@@ -114,8 +111,7 @@ int Ipcs::SharedMemoryWrite(char *shareddata, int size)
 
 	if(shmdt(shmaddr) == -1) 
 	{
-		msg = "Shmdt failed";
-		ERR_LOG(msg);
+		ERR_LOG(string("Shmdt failed"));
 		return -1;
 	}
 
@@ -126,14 +122,12 @@ int Ipcs::SharedMemoryFree(void)
 {
   if(shmctl(shmid, IPC_RMID, 0) == -1) 
   {
-    msg = "Shmctl failed";
-    ERR_LOG(msg);
+    ERR_LOG(string("Shmctl failed"));
 
     return -1;
   }
 
-  msg = "Shared memory end";
-  INFO_LOG(msg);
+  INFO_LOG(string("Shared memory end"));
 
   return 1;
 }
@@ -156,12 +150,15 @@ int Ipcs::MessageQueueCreate()
   // Get Message Queue ID
   if ((msqid = msgget((key_t)key_num, IPC_CREAT|0666))==-1)
   {
-    fprintf(stderr, "MessageQueueCreate() : msgget(%d) failed\n", key_num);
-    perror("");
+    msg = string_format("msgget(%d) failed", key_num);
+    ERR_LOG(msg);
+
     return -1;
   }
 
-  fprintf(stderr, "MessageQueueCreate() : msgget(%d) successful\n", key_num);
+  //fprintf(stderr, "MessageQueueCreate() : msgget(%d) successful\n", key_num);
+  msg = string_format("MessageQueueCreate() : msgget(%d) successful\n", key_num);
+  INFO_LOG(msg);
 
   return 1;
 }
@@ -170,8 +167,8 @@ int Ipcs::MessageQueueInit()
 {
   if ((msqid = msgget((key_t)key_num, IPC_CREAT|0666)) == -1)
   {
-      fprintf(stderr, "msgget failed[%d]\n", key_num);
-      perror("");
+      msg = string_format("msgget failed[%d]", key_num);
+      ERR_LOG(msg);
       return -1;
   }
 
@@ -198,32 +195,35 @@ int Ipcs::MessageQueueRead(char* data, int flag)
   {
     case KEY_NUM_MQ_GRAB:
       {
-        //if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, 0) == -1)           // blocking 
-        //if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, IPC_NOWAIT) == -1)    // non-blocking
+        //if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, 0) == -1)              // blocking 
+        //if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, IPC_NOWAIT) == -1)     // non-blocking
         if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, flag) == -1)    // non-blocking
         {
-            if (errno != ENOMSG)
-            {
-                printf("msgrcv failed[%d] : %d\n", key_num, errno);
-                return -1;
-            }
-            return 1;
+          if (errno != ENOMSG)
+          {
+            msg = string_format("msgrcv failed[%d] : %d", key_num, errno);
+            ERR_LOG(msg);
+
+            return -1;
+          }
+          return 1;
         }
       }
       break;
 
     case KEY_NUM_MQ_LPDR:
       {
-        //if (msgrcv(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0, 0) == -1)           // blocking 
-        //if (msgrcv(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0, IPC_NOWAIT) == -1)    // non-blocking
+        //if (msgrcv(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0, 0) == -1)              // blocking 
+        //if (msgrcv(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0, IPC_NOWAIT) == -1)     // non-blocking
         if (msgrcv(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0, flag) == -1)    // non-blocking
         {
-            if (errno != ENOMSG)
-            {
-                printf("msgrcv failed[%d] : %d\n", key_num, errno);
-                return -1;
-            }
-            return 1;
+          if (errno != ENOMSG)
+          {
+            msg = string_format("msgrcv failed[%d] : %d", key_num, errno);
+            ERR_LOG(msg);
+            return -1;
+          }
+          return 1;
         }
       }
       break;
@@ -239,8 +239,9 @@ int Ipcs::MessageQueueWrite(char* data)
     case KEY_NUM_MQ_GRAB:
       if (msgsnd(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0)==-1)						// blocking
       {
-        fprintf(stderr, "MessageQueueWrite() : msgsnd failed[%d]\n", key_num);
-        perror("");
+        msg = string_format("msgsnd failed[%d]", key_num);
+        ERR_LOG(msg);
+
         return -1;
       }
       break;
@@ -248,8 +249,9 @@ int Ipcs::MessageQueueWrite(char* data)
     case KEY_NUM_MQ_LPDR:
       if (msgsnd(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0)==-1)						// blocking
       {
-        fprintf(stderr, "MessageQueueWrite() : msgsnd failed[%d]\n", key_num);
-        perror("");
+        msg = string_format("msgsnd failed[%d]", key_num);
+        ERR_LOG(msg);
+
         return -1;
       }
       break;
@@ -264,8 +266,9 @@ int Ipcs::MessageQueueFree()
   {
     if (msgctl(msqid, IPC_RMID, NULL)==-1)
     {
-      fprintf(stderr, "MessageQueueFree() : msgctl failed[%d]\n", key_num);
-      perror("");
+      msg = string_format("msgctl failed[%d]", key_num);
+      ERR_LOG(msg);
+
       return -1;
     }
   }

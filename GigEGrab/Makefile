@@ -20,6 +20,11 @@ OS = mac
 endif
 endif
 
+#for release
+CFLAGS += -DLOG_LEVEL=6
+#for debug
+#CFLAGS += -DLOG_LEVEL=7
+
 OUTPUTNAME = GigEGrab${D}
 OUTDIR = ./
 

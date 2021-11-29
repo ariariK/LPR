@@ -109,9 +109,22 @@ CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.s"
 	/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/bin/aarch64-buildroot-linux-gnu-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /images/apps/LPR/InferenceNCNN/src/ipcs.cpp -o CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.s
 
+CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o: CMakeFiles/InferenceNCNN.dir/flags.make
+CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o: ../src/sha256.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/images/apps/LPR/InferenceNCNN/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o"
+	/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/bin/aarch64-buildroot-linux-gnu-g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o -c /images/apps/LPR/InferenceNCNN/src/sha256.cpp
+
+CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.i"
+	/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/bin/aarch64-buildroot-linux-gnu-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /images/apps/LPR/InferenceNCNN/src/sha256.cpp > CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.i
+
+CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.s"
+	/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/bin/aarch64-buildroot-linux-gnu-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /images/apps/LPR/InferenceNCNN/src/sha256.cpp -o CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.s
+
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: CMakeFiles/InferenceNCNN.dir/flags.make
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: ../src/main.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/images/apps/LPR/InferenceNCNN/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/InferenceNCNN.dir/src/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/images/apps/LPR/InferenceNCNN/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/InferenceNCNN.dir/src/main.cpp.o"
 	/opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/bin/aarch64-buildroot-linux-gnu-g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/InferenceNCNN.dir/src/main.cpp.o -c /images/apps/LPR/InferenceNCNN/src/main.cpp
 
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.i: cmake_force
@@ -128,6 +141,7 @@ InferenceNCNN_OBJECTS = \
 "CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_detect.cpp.o" \
 "CMakeFiles/InferenceNCNN.dir/src/lpr_demo/utils.cpp.o" \
 "CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.o" \
+"CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o" \
 "CMakeFiles/InferenceNCNN.dir/src/main.cpp.o"
 
 # External object files for target InferenceNCNN
@@ -137,6 +151,7 @@ InferenceNCNN: CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_ocr.cpp.o
 InferenceNCNN: CMakeFiles/InferenceNCNN.dir/src/lpr_demo/l_detect.cpp.o
 InferenceNCNN: CMakeFiles/InferenceNCNN.dir/src/lpr_demo/utils.cpp.o
 InferenceNCNN: CMakeFiles/InferenceNCNN.dir/src/ipcs.cpp.o
+InferenceNCNN: CMakeFiles/InferenceNCNN.dir/src/sha256.cpp.o
 InferenceNCNN: CMakeFiles/InferenceNCNN.dir/src/main.cpp.o
 InferenceNCNN: CMakeFiles/InferenceNCNN.dir/build.make
 InferenceNCNN: ../../lib/lpr/libdl.so
@@ -194,8 +209,9 @@ InferenceNCNN: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output
 InferenceNCNN: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/lib/libopencv_videoio.so
 InferenceNCNN: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/lib/libopencv_videoio.so.3.4
 InferenceNCNN: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/lib/libopencv_videoio.so.3.4.12
+InferenceNCNN: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/lib64/libsqlite3.so
 InferenceNCNN: CMakeFiles/InferenceNCNN.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/images/apps/LPR/InferenceNCNN/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX executable InferenceNCNN"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/images/apps/LPR/InferenceNCNN/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable InferenceNCNN"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/InferenceNCNN.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

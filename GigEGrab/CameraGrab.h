@@ -37,6 +37,14 @@ protected:
 	string			strSavePath;
 
 	float				fGainValue;
+	float				fGainValueLow;
+	float				fGainValueHigh;
+
+	float				fExposureValueMax;
+	float				fExposureValueLow;
+	float				fExposureValueHigh;
+
+	double 			thValueLowBase, thValueHighBase; 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
 // Operations
@@ -51,6 +59,11 @@ public:
 	int		SetSaveEnable(bool enable);
 	int 	SetSavePath(string path);
 	int 	SetGainValue(float value);
+	int		SetGainLow(float value);
+	int		SetGainHigh(float value);
+	int		SetExposureMax(float value);
+	int		SetExposureLow(float value);
+	int		SetExposureHigh(float value);
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
 // Implementation
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
@@ -58,6 +71,7 @@ public:
 	bool 	Init();
 
 	int		RunGrabbing();
+	int		CtrlGPIO(int fd, int value);
 
 private:
 	Ipcs	*Sm_Grab;

@@ -22,6 +22,7 @@
 
 #define KEY_NUM_MQ_GRAB     2345          // 메시지큐 - 캡쳐 정보
 #define KEY_NUM_MQ_LPDR     3456          // 메시지큐 - LPDR
+#define MQ_LPDR_MAX_QSIZE   100
 
 class Ipcs
 {
@@ -83,6 +84,10 @@ public:
   struct lpdr_data{
       long timestamp;
       char carNo[64];
+
+      // db info
+      int code;   
+      char reserved[8];
   };
   struct message_lpdr{
       long msg_type;

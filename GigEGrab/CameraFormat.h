@@ -41,6 +41,7 @@ private:
 	float			fFrameRate;
 
 protected:
+	string 			msg;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // Operations
@@ -77,6 +78,7 @@ public:
 
 	// GPIO
 	int 	SetGpioUserMode();
+	int 	SetGpioStrobeMode();
 	int 	SetTriggerSouce();
 	int		SetLineSelector();
 	int 	SetLineMode();

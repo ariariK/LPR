@@ -16,6 +16,8 @@ using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 
+#define LOG_NAME	"[Preview]"
+
 #define IPC_SM  0
 #define IPC_MQ  1
 #define IPC_MODE IPC_MQ
@@ -36,6 +38,11 @@ std::map<std::string, std::string> hangul_dict = {
         { "대전", "55" },{ "울산", "56" },{ "세종", "57" },{ "경기", "58" },{ "강원", "59" },
         { "충북", "60" },{ "충남", "61" },{ "전북", "62" },{ "전남", "63" },{ "경북", "64" },
         { "경남", "65" },{ "제주", "66" },
+        // add. @ ver20211115
+        { "서울", "67" },{ "부산", "68" },{ "대구", "69" },{ "인천", "70" },{ "광주", "71" },
+        { "대전", "72" },{ "울산", "73" },{ "세종", "74" },{ "경기", "75" },{ "강원", "76" },
+        { "충북", "77" },{ "충남", "78" },{ "전북", "79" },{ "전남", "80" },{ "경북", "81" },
+        { "경남", "82" },{ "제주", "83" },
     };
 
 MainWindow::MainWindow(QWidget *parent)
@@ -71,6 +78,8 @@ MainWindow::MainWindow(QWidget *parent)
     else
     {
     }
+
+    openlog(LOG_NAME, LOG_PID, LOG_USER);
 
 #if true
     setStyleSheet("QWidget#MainWindow { background-color : black; color : white; }");
@@ -122,6 +131,7 @@ MainWindow::MainWindow(QWidget *parent)
     threadPreview->start();
     connect(threadPreview, SIGNAL(Send()), this, SLOT(Run()));
 #endif
+
 }
 
 MainWindow::~MainWindow()
@@ -141,6 +151,8 @@ MainWindow::~MainWindow()
 #else
 #endif
     SAFE_DELETE(Sm_Lpr);
+
+    closelog();
 
     delete ui;
 }
@@ -186,13 +198,15 @@ void MainWindow::GetCarNoInfo(string strCarNo)
     strNoFront = "";
     strHangulB = "0";
     strNoBack  = "";
+    //printf("len : %d\n", len);
     if (len < 9) 
     {
         strHangulFileNameF = "/oem/hangul/" + hangul_dict[strHangulF] + ".jpg";   
         strHangulFileNameB = "/oem/hangul/" + hangul_dict[strHangulB] + ".jpg";
         return;
     }
-    
+
+    // 한글 2글자가 앞에 위치(구버전 번호판)    
     for(i=0; i<6; i++)
     {
         if((carNo[i] & 0x80) != 0x80)   // 숫자
@@ -201,6 +215,7 @@ void MainWindow::GetCarNoInfo(string strCarNo)
             break;
         }
     }
+    //printf("ver : %d\n", ver);
 
     if (ver == 1)       // new(current) version(지역정보 없음)
     {
@@ -209,7 +224,7 @@ void MainWindow::GetCarNoInfo(string strCarNo)
         for(i=0; i<len; i++)
         {
             // 2. 첫번째 숫자부분(2~3자리)
-            if((carNo[i] & 0x80) == 0x80)   // 한글
+            if((carNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)
             {
                 size = i;
                 strNoFront = strCarNo.substr(0, size);
@@ -234,13 +249,14 @@ void MainWindow::GetCarNoInfo(string strCarNo)
         for(i=6; i<len; i++)
         {
             // 2. 첫번째 숫자부분(2~3자리)
-            if((carNo[i] & 0x80) == 0x80)   // 한글
+            if((carNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)
             {
                 size = i-6;
-                strNoFront = strCarNo.substr(i, size);
+                strNoFront = strCarNo.substr(i-size, size);     // mod. by ariari : 2021.11.25 bug fix : i => i-size
                 break;
             }
         }
+        //printf("i = %d, size = %d, strNoFront = %s\n", i, size, strNoFront.c_str());
         if(size < 2) return;
         
         // 2. 한글(필수)
@@ -263,8 +279,8 @@ void MainWindow::Update()
     Sm_Res->SharedMemoryRead((char *)&st_grab);
     capWidth    = st_grab.capWidth;
     capHeight   = st_grab.capHeight;
-    msg.sprintf("%d, %d, %d, %d\n", st_grab.capWidth, st_grab.capHeight, capWidth, capHeight);
-    INFO_LOG(msg.toStdString());
+    msg = string_format("st_grab.capWidth = %d, st_grab.capHeight = %d, capWidth = %d, capHeight = %d\n", st_grab.capWidth, st_grab.capHeight, capWidth, capHeight);
+    INFO_LOG(msg);
 #elif (IPC_MODE == IPC_MQ)
     if (!capWidth || !capHeight)
     {
@@ -276,12 +292,12 @@ void MainWindow::Update()
                 capHeight   = msq.data.capHeight;
                 break;
             }
-            usleep(100000);
+            usleep(1000000);
             Mq_Grab->MessageQueueInit();
             continue;
         }
-        msg.sprintf("%d, %d, %d, %d\n", msq.data.capWidth, msq.data.capHeight, capWidth, capHeight);
-        INFO_LOG(msg.toStdString());
+        msg = string_format("msq.data.capWidth = %d, msq.data.capHeight = %d, capWidth = %d, capHeight = %d\n", msq.data.capWidth, msq.data.capHeight, capWidth, capHeight);
+        INFO_LOG(msg);
     }
 #else
 #endif
@@ -296,7 +312,7 @@ void MainWindow::Update()
         {
             capWidth = 0;
             capHeight = 0;
-            fprintf(stderr, "[Error!!!]MessageQueueRead()\n");    
+            ERR_LOG(string("[Error!!!]MessageQueueRead()"));
         }
 #else
 #endif
@@ -305,7 +321,7 @@ void MainWindow::Update()
         if (Sm_Grab->SharedMemoryRead((char *)buffer) < 0)
         {
             Sm_Grab->SharedMemoryInit();
-            fprintf(stderr, "[Error!!!]SharedMemoryRead()\n");  
+            ERR_LOG(string("[Error!!!]SharedMemoryRead()"));
         }
 
         //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
@@ -431,7 +447,7 @@ void MainWindow::Update()
     else 
     {
         // Defalut Image Display
-        QString qsfileName="/oem/test_data/no_signal.jpg";
+        QString qsfileName="/oem/Screen_shot/no_signal.jpg";
         cv::Mat img = cv::imread(qsfileName.toLocal8Bit().data());
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB); // invert BGR to RGB
         cv::putText(img, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 4);
