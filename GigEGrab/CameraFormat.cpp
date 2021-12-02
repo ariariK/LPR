@@ -191,6 +191,16 @@ int CameraFormat::SetFrameRate(float frameRate)
 	INFO_LOG(msg);
 
 	ptrThroughputLimit->SetValue(tarClk);
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// AE Range 설정 (min, max)
+	//Automatic Exposure Time limits
+	CFloatPtr ptrAutoXExposureTimeLowerLimit = nodeMap.GetNode("AutoExposureTimeLowerLimit");
+	//ptrAutoXExposureTimeLowerLimit->SetValue(33);	
+	CFloatPtr ptrAutoXExposureTimeUpperLimit = nodeMap.GetNode("AutoExposureTimeUpperLimit");
+	ptrAutoXExposureTimeUpperLimit->SetValue(1000000/frameRate);	// us
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #else
 	if(nCapWidth == 1920 && nCapHeight == 1080)	// FHD
 	{
@@ -338,7 +348,7 @@ int CameraFormat::SetLineMode()
 			cout << "Unable to set Line Mode. Aborting..." << endl << endl;
 			return -1;
 	}
-	//ptrLineMode->SetIntValue(1); // output is selected(Output)
+	ptrLineMode->SetIntValue(1); // output is selected(Output)
 
 	//cout << endl << "SetLineMode() : ptrLineMode->GetIntValue() = " << ptrLineMode->GetIntValue() << endl;
 	msg = string_format("SetLineMode() : ptrLineMode->GetIntValue() = %d", ptrLineMode->GetIntValue());
@@ -368,7 +378,7 @@ int CameraFormat::SetLineSource()
 	//ptrLineSource->SetIntValue(0);	// on
 	ptrLineSource->SetIntValue(2);	// off : ???
 	ptrLineSource->SetIntValue(1);	// off : ???(good)
-	
+
 	//cout << endl << "SetLineSource() : ptrLineSource->GetIntValue() = " << ptrLineSource->GetIntValue() << endl;
 	msg = string_format("SetLineSource() : ptrLineSource->GetIntValue() = %d", ptrLineSource->GetIntValue());
 	INFO_LOG(msg);

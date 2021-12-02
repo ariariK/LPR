@@ -178,9 +178,18 @@ int CameraGrab::SetLineSource()
 	gain = ptrGain->GetValue();
 	expTime = exposureTime->GetValue();
 
-	msg = string_format("current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+#if false // for debug
+	//Automatic Exposure Time limits
+	CFloatPtr ptrAutoXExposureTimeLowerLimit = nodeMap.GetNode("AutoExposureTimeLowerLimit");
+	CFloatPtr ptrAutoXExposureTimeUpperLimit = nodeMap.GetNode("AutoExposureTimeUpperLimit");
+
+	cout << "ptrAutoXExposureTimeLowerLimit = " << ptrAutoXExposureTimeLowerLimit->GetValue() << endl;
+	cout << "ptrAutoXExposureTimeUpperLimit = " << ptrAutoXExposureTimeUpperLimit->GetValue()<< endl;
+#endif
+
+	msg = string_format("[%d] current ExposureTime value = %f[us], current gain value = %f[dB]", dn, exposureTime->GetValue(), ptrGain->GetValue());
 	DEBUG_LOG(msg);
-			
+
 	// 현재값
 	thValue = (gain * fExposureValueMax) + expTime;
 
@@ -196,16 +205,24 @@ int CameraGrab::SetLineSource()
 		debounce_cnt++;
 
 		// check on -> off
-		if(debounce_cnt > 50 && thValue < thValueLow)
+		//if(debounce_cnt > 50 && thValue < thValueLow)
+		if(thValue < thValueLow)
+		{
+			if(debounce_cnt > 50)
+			{
+				debounce_cnt = 0;
+
+				//ptrLineSource->SetIntValue(2);
+				ptrLineSource->SetIntValue(1);	// org(off)
+				//ptrLineSource->SetIntValue(0);
+
+				msg = string_format("[OFF] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+				INFO_LOG(msg);
+			}
+		}
+		else 
 		{
 			debounce_cnt = 0;
-
-			//ptrLineSource->SetIntValue(2);
-			ptrLineSource->SetIntValue(1);	// org(off)
-			//ptrLineSource->SetIntValue(0);
-
-			msg = string_format("[OFF] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
-			INFO_LOG(msg);
 		}
 	}
 	else			// led off
@@ -213,14 +230,22 @@ int CameraGrab::SetLineSource()
 		debounce_cnt++;
 
 		// check off -> on
-		if(debounce_cnt > 50 && thValue > thValueHigh)
+		//if(debounce_cnt > 50 && thValue > thValueHigh)
+		if(thValue > thValueHigh)
+		{
+			if(debounce_cnt > 50)
+			{
+				debounce_cnt = 0;
+
+				ptrLineSource->SetIntValue(0);
+
+				msg = string_format("[ON] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+				INFO_LOG(msg);
+			}
+		}
+		else
 		{
 			debounce_cnt = 0;
-
-			ptrLineSource->SetIntValue(0);
-
-			msg = string_format("[ON] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
-			INFO_LOG(msg);
 		}
 	}
 
@@ -330,7 +355,7 @@ int CameraGrab::RunGrabbing()
 		int pack_size = 100;
 		int64_t imageCnt = 0;
 		int64_t runningTime = 0;
-	
+		int64_t cap_cnt = 0;
 		do {
 			try
 			{
@@ -357,6 +382,9 @@ int CameraGrab::RunGrabbing()
 				}
 				else
 				{
+					cap_cnt++;
+					if(cap_cnt%3) continue;
+					cap_cnt=0;
 					// optional parameter.
 					//
 					const size_t width = pResultImage->GetWidth();

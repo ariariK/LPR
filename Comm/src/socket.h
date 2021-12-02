@@ -109,6 +109,24 @@ public:
   } ElPatrolImageSend, *LPElPatrolImageSend;
 
   // sizeof() = 328Bytes(312+dummy(16))
+#if true
+  typedef struct ELPATROLIMAGESENDV2
+  {
+    SYSTEMTIME		dateTime;				        // 일시(16Bytes)
+    char			    strPatrolID[224];		    // 경찰차 ID 정보, UTF8(224Bytes)
+    char          strType[32];            // 수배종류(32Bytes)
+    char			    strVehicleInfo[32];		  // 차량번호(32Bytes)
+
+    // RECT
+    int           x;                      // RECT in WIN32(16Bytes)
+    int           y;
+    int           endX;
+    int           endY;
+
+    unsigned int	lcommand;               // Command(4Bytes)
+    unsigned int	dwImageDataSize;        // Datesize(4Bytes)
+  } ElPatrolImageSendV2, *LPElPatrolImageSendV2;
+#else  
   typedef struct ELPATROLIMAGESENDV2
   {
     SYSTEMTIME		dateTime;				        // 일시
@@ -121,7 +139,7 @@ public:
     unsigned int	lcommand;               // 4bytes
     unsigned int	dwImageDataSize;        // 4bytes
   } ElPatrolImageSendV2, *LPElPatrolImageSendV2;
-
+#endif
 
   typedef struct FILEINFO
   {
@@ -140,8 +158,8 @@ public:
   ElPatrolHeader    patrolHeader;
   int SetDeleteInfo(time_t timestamp, string carNumber);
   int SendHeader(char code);
-  int SendPacketPatrolCarInfoV2(time_t timestamp, string carNumber, int code);
-  int SendPacketImageOrg();
+  int SendPacketPatrolCarInfoV2(time_t timestamp, string carNumber);
+  int SendPacketImageOrg(time_t timestamp, string carNumber, string status, int x, int y, int endX, int endY);
   int SendPacketImageLpd();
   int ProcPacketMan(char* pbuf, int size);
 

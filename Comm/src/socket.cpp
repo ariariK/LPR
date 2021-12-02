@@ -33,10 +33,17 @@ CommSocket::CommSocket(string patrolID, string vehicleInfo)
 
   memset(patrolResponse.strStatusInfo, 0, sizeof(patrolResponse.strStatusInfo));
   memset(patrolResponse.strVehicleInfo, 0, sizeof(patrolResponse.strVehicleInfo));
+
+  // add. by ariari : 2021.11.30
+  memset(patrolImageV2.strPatrolID, 0, sizeof(patrolImageV2.strPatrolID));
+  memset(patrolImageV2.strVehicleInfo, 0, sizeof(patrolImageV2.strVehicleInfo));
   
   strPatrolID     = patrolID;
   strVehicleInfo  = vehicleInfo;
   strncpy(patrolCarInfo.strStatusInfo, strPatrolID.c_str(), strPatrolID.size());
+  strncpy(patrolCarInfo.strVehicleInfo, vehicleInfo.c_str(), vehicleInfo.size());
+  // add. by ariari : 2021.11.30
+  strncpy(patrolImageV2.strPatrolID, strPatrolID.c_str(), strPatrolID.size());
 
   msg = string_format("Patrol ID = %s", strPatrolID.c_str());
   INFO_LOG(msg);
@@ -240,19 +247,16 @@ int CommSocket::SendPacketPatrolCarInfo(time_t timestamp, string carNumber)
   return writelen;
 }
 
-int CommSocket::SendPacketPatrolCarInfoV2(time_t timestamp, string carNumber, int code)
+int CommSocket::SendPacketPatrolCarInfoV2(time_t timestamp, string carNumber)
 {
   int len = sizeof(patrolCarInfo.strVehicleInfo);
-  //printf("SendPacketPatrolCarInfoV2 : %d \n", code);
-  msg = string_format("SendPacketPatrolCarInfoV2 : %d", code);
-  DEBUG_LOG(msg);
-
+  
   // clear
-  memset(patrolCarInfo.strVehicleInfo, 0, sizeof(patrolCarInfo.strVehicleInfo));
+  //memset(patrolCarInfo.strVehicleInfo, 0, sizeof(patrolCarInfo.strVehicleInfo));
 
   // put new data
   ParseSystemTime(timestamp, (PSYSTEMTIME)&patrolCarInfo.dateTime);
-  strncpy(patrolCarInfo.strVehicleInfo, carNumber.c_str(), carNumber.size());
+  //strncpy(patrolCarInfo.strVehicleInfo, carNumber.c_str(), carNumber.size()); // fixed. mod. by ariari : 2021.11.30
 
   int writelen = 0;
   /*
@@ -413,7 +417,7 @@ int CommSocket::SendPacketImage()
   return 1;
 }
 
-int CommSocket::SendPacketImageOrg()
+int CommSocket::SendPacketImageOrg(time_t timestamp, string carNumber, string status, int x, int y, int endX, int endY)
 {
   int writelen;
   int fulllen, sendlen;
@@ -421,14 +425,20 @@ int CommSocket::SendPacketImageOrg()
   string fname0 = "/userdata/result/" + to_string(delFileInfo.timestamp) + "_" + std::string(delFileInfo.carNo) + "_0.jpg";
   //string fname1 = "/userdata/result/" + to_string(delFileInfo.timestamp) + "_" + std::string(delFileInfo.carNo) + "_1.jpg";
 
-  memset(patrolImageV2.strPatrolID, 0, sizeof(patrolImageV2.strPatrolID));
+  // init
+  //memset(patrolImageV2.strPatrolID, 0, sizeof(patrolImageV2.strPatrolID));  // fix
   memset(patrolImageV2.strVehicleInfo, 0, sizeof(patrolImageV2.strVehicleInfo));
-  memset(patrolImageV2.dummy, 0, sizeof(patrolImageV2.dummy));
 
+  // put data
   time_t msecs_time = getTimemsec();
   ParseSystemTime(msecs_time, (PSYSTEMTIME)&patrolImageV2.dateTime);
-  strncpy((char *)patrolImageV2.strPatrolID, strPatrolID.c_str(), strPatrolID.size());
-  strncpy((char *)patrolImageV2.strVehicleInfo, strVehicleInfo.c_str(), strVehicleInfo.size());
+  //strncpy((char *)patrolImageV2.strPatrolID, strPatrolID.c_str(), strPatrolID.size());  // fix, not change
+  strncpy((char *)patrolImageV2.strType, status.c_str(), status.size());
+  strncpy((char *)patrolImageV2.strVehicleInfo, carNumber.c_str(), carNumber.size());
+  patrolImageV2.x = x;
+  patrolImageV2.y = y;
+  patrolImageV2.endX = endX;
+  patrolImageV2.endY = endY;
 
   // 1. 원본 이미지
   std::ifstream is0(fname0, std::ifstream::binary);
@@ -508,13 +518,13 @@ int CommSocket::SendPacketImageLpd()
   //string fname0 = "/userdata/result/" + to_string(delFileInfo.timestamp) + "_" + std::string(delFileInfo.carNo) + "_0.jpg";
   string fname1 = "/userdata/result/" + to_string(delFileInfo.timestamp) + "_" + std::string(delFileInfo.carNo) + "_1.jpg";
 
-  memset(patrolImageV2.strPatrolID, 0, sizeof(patrolImageV2.strPatrolID));
+  // init
+  //memset(patrolImageV2.strPatrolID, 0, sizeof(patrolImageV2.strPatrolID));  // fix
   memset(patrolImageV2.strVehicleInfo, 0, sizeof(patrolImageV2.strVehicleInfo));
-  memset(patrolImageV2.dummy, 0, sizeof(patrolImageV2.dummy));
 
   time_t msecs_time = getTimemsec();
   ParseSystemTime(msecs_time, (PSYSTEMTIME)&patrolImageV2.dateTime);
-  strncpy((char *)patrolImageV2.strPatrolID, strPatrolID.c_str(), strPatrolID.size());
+  //strncpy((char *)patrolImageV2.strPatrolID, strPatrolID.c_str(), strPatrolID.size());  // fix, not change
   strncpy((char *)patrolImageV2.strVehicleInfo, strVehicleInfo.c_str(), strVehicleInfo.size());
 
   // 2. 번호판 이미지

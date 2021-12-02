@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <queue>
+#include <sys/time.h>
 
 #define LOG_NAME	"[Comm]"
 
@@ -37,18 +38,30 @@ pthread_mutex_t mutex_socket;
 string msg;
 
 struct lpdr_data{
-    long timestamp;
-    char carNo[64];
+  long timestamp;
 
-    // db info
-    int code;   
-    char reserved[8];
+  char status[32];    // 수배종류
+  char carNo[32];     // 차량정보
+  // RECT
+  int x;              // rect[0]
+  int y;              // rect[1]    
+  int endX;           // rect[2]
+  int endY;           // rect[3]
 };
 struct message_lpdr{
     long msg_type;
     struct lpdr_data data;
 };
 struct message_lpdr msq_lpdr;
+
+time_t getTimemsec()
+{
+    struct timeval time_now{};
+    gettimeofday(&time_now, nullptr);
+    time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+    return msecs_time;
+}
 
 void* thread_socket_man(void* args)
 {
@@ -59,24 +72,63 @@ void* thread_socket_man(void* args)
 
   string log;
   string fname;
+
+  int sent  = 0;
+#if true  // once
+//#if false // every times
+  // send patrol car info : once
+  // S0 : Send Header
+  sent = comm->SendHeader('S');
+  if (sent < 0)  
+  {
+    cout << "broken socket, exit..." << endl;
+    //pthread_mutex_unlock(&mutex_socket);
+
+    // delete
+    //comm->UpdateImageList();
+    //break;
+    bIsRunningSocketMan = false; // EXIT
+  }
+
+  // S1 : send CarInfo
+  //sent = comm->SendPacketPatrolCarInfoV2((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo));
+  sent = comm->SendPacketPatrolCarInfoV2(getTimemsec(), std::string("")); 
+  if (sent < 0)  
+  {
+    cout << "broken socket, exit..." << endl;
+    //pthread_mutex_unlock(&mutex_socket);
+
+    // delete
+    //comm->UpdateImageList();
+    //break;
+    bIsRunningSocketMan = false; // EXIT
+  }
+#endif
+
   while(bIsRunningSocketMan)
   {
     int qnum = Mq_Lpdr->MessageQueueQNum();
     //cout << "mq_lpdr queue size = " << qnum << endl;
 
-    int sent  = 0;
+    sent  = 0;
     if(qnum)  // not empty
     {
       //pthread_mutex_lock(&mutex_socket);
       Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr);
       //cout << "msq_lpdr.data.timestamp = " << msq_lpdr.data.timestamp << endl;   
-      //cout << "msq_lpdr.data.code = " << msq_lpdr.data.code << endl;   
-      msg = string_format("msq_lpdr.data.timestamp = %ld, msq_lpdr.data.code = %d", msq_lpdr.data.timestamp, msq_lpdr.data.code);
+      //cout << "msq_lpdr.data.status = " << msq_lpdr.data.status << endl;   
+      //cout << "msq_lpdr.data.carNo = " << msq_lpdr.data.carNo << endl;   
+      //cout << "msq_lpdr.data.x = " << msq_lpdr.data.x << endl;   
+      //cout << "msq_lpdr.data.y = " << msq_lpdr.data.y << endl;   
+      //cout << "msq_lpdr.data.endX = " << msq_lpdr.data.endX << endl;   
+      //cout << "msq_lpdr.data.endY = " << msq_lpdr.data.endY << endl;   
+      msg = string_format("msq_lpdr.data.timestamp = %ld, msq_lpdr.data.status = %s, msq_lpdr.data.carNo = %s, (rect) x:%d, y:%d, endX:%d, endY:%d", msq_lpdr.data.timestamp, msq_lpdr.data.status, msq_lpdr.data.carNo, msq_lpdr.data.x, msq_lpdr.data.y, msq_lpdr.data.endX, msq_lpdr.data.endY);
       DEBUG_LOG(msg);
 
       // SetFileInfo
       comm->SetDeleteInfo((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo));
 
+#if false // send patrol car info(every times)
       // S0 : Send Header
       sent = comm->SendHeader('S');
       if (sent < 0)  
@@ -90,7 +142,7 @@ void* thread_socket_man(void* args)
       }
 
       // S1 : send CarInfo
-      sent = comm->SendPacketPatrolCarInfoV2((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo), msq_lpdr.data.code);
+      sent = comm->SendPacketPatrolCarInfoV2((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo));
       if (sent < 0)  
       {
         cout << "broken socket, exit..." << endl;
@@ -100,12 +152,13 @@ void* thread_socket_man(void* args)
         comm->UpdateImageList();
         break;
       }
+#endif
 
       // S3 : Send Header
       sent = comm->SendHeader('I');
 
       // S4 : send CarInfo & Image(ORG)
-      sent = comm->SendPacketImageOrg();
+      sent = comm->SendPacketImageOrg((time_t)msq_lpdr.data.timestamp, std::string(msq_lpdr.data.carNo), std::string(msq_lpdr.data.status), msq_lpdr.data.x, msq_lpdr.data.y, msq_lpdr.data.endX, msq_lpdr.data.endY);
       if (sent < 0)  
       {
         cout << "broken socket, exit..." << endl;
@@ -116,6 +169,8 @@ void* thread_socket_man(void* args)
         break;
       }
 
+// rem. by ariari : 2021.11.30
+#if false
       // S5 : Send Header
       sent = comm->SendHeader('I');
       if (sent < 0)  
@@ -136,6 +191,7 @@ void* thread_socket_man(void* args)
         comm->UpdateImageList();
         break;
       }
+#endif      
       // delete
       comm->UpdateImageList();
 

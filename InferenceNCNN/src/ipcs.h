@@ -81,12 +81,15 @@ public:
 	struct message_grab msq_grab;
 
   struct lpdr_data{
-      long timestamp;
-      char carNo[64];
-      
-      // db info
-      int code;   
-      char reserved[8];
+    long timestamp;
+
+    char status[32];    // 수배종류
+    char carNo[32];     // 차량정보
+    // RECT
+    int x;              // rect[0]
+    int y;              // rect[1]    
+    int endX;           // rect[2]
+    int endY;           // rect[3]
   };
   struct message_lpdr{
       long msg_type;

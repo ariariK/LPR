@@ -60,11 +60,14 @@ struct message msq;
 
 struct lpdr_data{
     long timestamp;
-    char carNo[64];
 
-    // db info
-    int code;   
-    char reserved[8];
+    char status[32];    // 수배종류
+    char carNo[32];     // 차량정보
+    // RECT
+    int x;              // rect[0]
+    int y;              // rect[1]    
+    int endX;           // rect[2]
+    int endY;           // rect[3]
 };
 struct message_lpdr{
     long msg_type;
@@ -151,13 +154,13 @@ bool checkCoolTime(string carNo)
 
 }
 
-std::string wanted_lp = "";
 bool isWanted(const string& str)
 {  
-#if true    // w/ sqlite database
     bool bIsWanted = 0;
     char *err_msg = 0;
     sqlite3_stmt *res;
+
+    code_value = 0; // init
 
     // get target value from db
     string encrypt = sha256(str);
@@ -182,35 +185,34 @@ bool isWanted(const string& str)
 
     //return bIsWanted;
     return bIsWanted ? checkCoolTime(str) : false;
+}
 
-#else   // w/o database
-    cout << "wanted_lp : " << wanted_lp << endl;
-    if(wanted_lp.size() == 0)   // w/ db
+static string convertWantedType(int code)
+{
+    string strType="수배종류";
+    switch(code)
     {
-        // db connection
-        std::string target = "";
+        case 1:
+            strType="도난";
+            break;
+        case 2:
+            strType="무적";
+            break;
+        case 3:
+            strType="범죄";
+            break;
+        case 5:
+            strType="기타";
+            break;
+        case 7:
+            strType="번호판분실";
+            break;
+        case 9:
+            strType="...";
+            break;
+    }
 
-        if (target.compare(str) == 0)
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
-    }
-    else                        // w/o db(직접설정, 테스트)
-    {
-        if (wanted_lp.compare(str) == 0)
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
-    }
-#endif
+    return strType;
 }
 
 int deleteFile(string fname)
@@ -426,13 +428,21 @@ void* thread_lpr(void* arg)
                     // 수배정보에 관계없이 기록
                     msq_lpdr.msg_type = 1;
                     msq_lpdr.data.timestamp = msecs_time;
+                    memset(msq_lpdr.data.status, 0, sizeof(msq_lpdr.data.status));
                     memset(msq_lpdr.data.carNo, 0, sizeof(msq_lpdr.data.carNo));
+                    string status = convertWantedType(code_value);  // from database(table:wanted, col[0,1,2], col[1]:code)
+                    strncpy(msq_lpdr.data.status, status.c_str(), status.size());   
                     strncpy(msq_lpdr.data.carNo, boxes[ib].lpr_string.c_str(), boxes[ib].lpr_string.size());
+                    msq_lpdr.data.x = boxes[ib].x1;
+                    msq_lpdr.data.y = boxes[ib].y1;
+                    msq_lpdr.data.endX = boxes[ib].x2;
+                    msq_lpdr.data.endY = boxes[ib].y2;
                    
-                    msq_lpdr.data.code = code_value;    // from database(table:wanted, col[0,1,2], col[1]:code)
+                    //cout << "code_value : " << code_value << endl;
+                    //cout << "msq_lpdr.data.status : " << msq_lpdr.data.status << endl;
                     //cout << "msq_lpdr.data.carNo : " << msq_lpdr.data.carNo << endl;
-                    //cout << "msq_lpdr.data.code : " << msq_lpdr.data.code << endl;
-                    msg = string_format("DB - carNo:%s, code:%d", msq_lpdr.data.carNo, msq_lpdr.data.code);
+                    
+                    msg = string_format("DB - carNo:%s, status:%s, x:%d, y:%d, endX:%d, endY:%d", msq_lpdr.data.carNo, msq_lpdr.data.status, msq_lpdr.data.x, msq_lpdr.data.y, msq_lpdr.data.endX, msq_lpdr.data.endY);
                     INFO_LOG(msg);
 
 #ifdef USE_Q_FOR_FILELIST
@@ -445,9 +455,9 @@ void* thread_lpr(void* arg)
                         // 중복체크
                         //if(checkCoolTime(msq_lpdr.data.carNo))
                         {
-                            msg = string_format("MessageQueueWrite - carNo:%s, code:%d", msq_lpdr.data.carNo, msq_lpdr.data.code);
+                            msg = string_format("MessageQueueWrite - carNo:%s, status:%s", msq_lpdr.data.carNo, msq_lpdr.data.status);
                             INFO_LOG(msg);
-                            cout << "수배차량 : " << msq_lpdr.data.carNo << ", code = " << msq_lpdr.data.code << endl;
+                            cout << "수배차량 : " << msq_lpdr.data.carNo << ", status = " << msq_lpdr.data.status << endl;
                             Mq_Lpdr->MessageQueueWrite((char *)&msq_lpdr);
                         }
                     }
@@ -526,13 +536,10 @@ int main(int argc, char** argv) {
     string strDetectModelBin = "";
     string strDetectModelParam = "";
     string strOCRModel = "";
-    while ((res=getopt(argc, argv, "t:w:d:p:o:h")) != -1) {
+    while ((res=getopt(argc, argv, "t:d:p:o:h")) != -1) {
 		switch(res) {
         case 't':
             coolTime = stoi(optarg);
-        break;
-        case 'w':   // wanted 정보(데모용)
-            wanted_lp = optarg;
         break;
 		case 'd':   // lpd ai model(file full path)
 			strDetectModelBin = optarg;
