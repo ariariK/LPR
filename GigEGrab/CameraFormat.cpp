@@ -38,7 +38,7 @@ bool CameraFormat::Init()
 int CameraFormat::SetCameraPtr(CameraPtr pcam)
 {
 	pCam = pcam;
-
+	
 	return 0;
 }
 
@@ -182,52 +182,38 @@ int CameraFormat::SetFrameRate(float frameRate)
 	CIntegerPtr ptrThroughputLimit = nodeMap.GetNode("DeviceLinkThroughputLimit");
 
 #if true	// new
-	int64_t tarClk = frameRate * (nCapWidth * nCapHeight);
-	tarClk = tarClk - (tarClk%INC_CAPTURE_CLK);
-	tarClk += MIN_CAPTURE_CLK;
-
-	//cout << "DeviceLinkThroughputLimit set to  = " << tarClk << endl;
-	msg = string_format("DeviceLinkThroughputLimit set to  %d", tarClk);
-	INFO_LOG(msg);
-
-	ptrThroughputLimit->SetValue(tarClk);
-
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// AE Range 설정 (min, max)
-	//Automatic Exposure Time limits
-	CFloatPtr ptrAutoXExposureTimeLowerLimit = nodeMap.GetNode("AutoExposureTimeLowerLimit");
-	//ptrAutoXExposureTimeLowerLimit->SetValue(33);	
-	CFloatPtr ptrAutoXExposureTimeUpperLimit = nodeMap.GetNode("AutoExposureTimeUpperLimit");
-	ptrAutoXExposureTimeUpperLimit->SetValue(1000000/frameRate);	// us
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#else
-	if(nCapWidth == 1920 && nCapHeight == 1080)	// FHD
+	// add. by ariari : 2021.12.10
+	CFloatPtr ptrFrameRate = pCam->GetNodeMap().GetNode("AcquisitionFrameRate");
+	cout << "Frame rate is set to " << ptrFrameRate->GetValue() << endl;
+	
+	//if (bFrameRateMode && ptrFrameRate->GetValue() > fFrameRate)	// 설정값보다 클 경우(더 많은 처리 => 캡쳐 제한둠)
+	if (bFrameRateMode)
 	{
-		//int64_t tarClk = MIN_CAPTURE_CLK + INC_CAPTURE_CLK*(28*(frameRate-1));
 		int64_t tarClk = frameRate * (nCapWidth * nCapHeight);
-
-		tarClk = tarClk - (tarClk%88000);
+		tarClk = tarClk - (tarClk%INC_CAPTURE_CLK);
 		tarClk += MIN_CAPTURE_CLK;
 
-		//cout << "set to  = " << tarClk << endl;
+		//cout << "DeviceLinkThroughputLimit set to  = " << tarClk << endl;
 		msg = string_format("DeviceLinkThroughputLimit set to  %d", tarClk);
 		INFO_LOG(msg);
-		
-		//ptrThroughputLimit->SetValue(MIN_CAPTURE_CLK + (INC_CAPTURE_CLK * (int)(frameRate-1)));
-		ptrThroughputLimit->SetValue(tarClk);
-	}
-	else 																				// HD
-	{
-		int64_t tarClk = MIN_CAPTURE_CLK + INC_CAPTURE_CLK*(9*(frameRate-1));
 
-		//cout << "set to  = " << tarClk << endl;
-		msg = string_format("DeviceLinkThroughputLimit set to  %d", tarClk);
-		INFO_LOG(msg);
-		
-		//ptrThroughputLimit->SetValue(MIN_CAPTURE_CLK + (INC_CAPTURE_CLK * (int)(frameRate-1)));
 		ptrThroughputLimit->SetValue(tarClk);
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// AE Range 설정 (min, max)
+		//Automatic Exposure Time limits
+		//CFloatPtr ptrAutoXExposureTimeLowerLimit = nodeMap.GetNode("AutoExposureTimeLowerLimit");
+		//ptrAutoXExposureTimeLowerLimit->SetValue(33);	
+		//CFloatPtr ptrAutoXExposureTimeUpperLimit = nodeMap.GetNode("AutoExposureTimeUpperLimit");
+		//ptrAutoXExposureTimeUpperLimit->SetValue(1000000/frameRate);	// us
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	}
+
+	fFrameRate = ptrFrameRate->GetValue();
+	cout << "Frame rate is set to " << fFrameRate << endl;
+	msg = string_format("Frame rate is set to %f", fFrameRate);
+	INFO_LOG(msg);
+#else
 #endif
 
 	//cout << "DeviceLinkThroughputLimit = " << ptrThroughputLimit->GetValue() << endl;

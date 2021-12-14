@@ -28,7 +28,7 @@ CFLAGS += -DLOG_LEVEL=6
 OUTPUTNAME = GigEGrab${D}
 OUTDIR = ./
 
-SPINNAKER_LIB = -L ../lib -lSpinnaker${D} ${SPIN_DEPS}
+SPINNAKER_LIB = -L ../lib -lSpinnaker${D} ${SPIN_DEPS} -lpthread
 
 #_OBJ = main.o
 

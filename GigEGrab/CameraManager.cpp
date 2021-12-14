@@ -32,14 +32,13 @@ CameraManager::CameraManager()
 
 CameraManager::~CameraManager()
 {
-	// Release
-	CameraRelease();
-
-
 	// 객체 소멸
 	SAFE_DELETE(pCamConn);
 	SAFE_DELETE(pCamFormat);
 	SAFE_DELETE(pCamGrab);
+
+	// Release
+	CameraRelease();
 }
 
 int CameraManager::PrintDeviceInfo(INodeMap& nodeMap)
@@ -138,7 +137,15 @@ bool CameraManager::Init()
 int CameraManager::CameraReady(int cam_index)
 {
 	pCam = camList.GetByIndex(cam_index);
+	if (pCam->IsInitialized()) 
+	{
+  	cout << "Camera already initialized. Deinitializing... " << endl;
+   	pCam->EndAcquisition();
+   	pCam->DeInit();
+  }
 	pCam->Init();
+	//always capture the latest image from the camera (ideally this should be a parameter)
+	pCam->TLStream.StreamBufferHandlingMode.SetValue(::Spinnaker::StreamBufferHandlingMode_NewestFirstOverwrite);
 
 #if true
 	
@@ -206,6 +213,7 @@ int CameraManager::SetFrameRateMode(bool enable)
 {
 	pCamFormat->SetCameraPtr(pCam);
 	pCamFormat->SetFrameRateMode(enable);
+	pCamGrab->SetFrameRateMode(enable);
 	return 0;
 }
 
@@ -213,6 +221,7 @@ int CameraManager::SetFrameRate(float frameRate)
 {
 	pCamFormat->SetCameraPtr(pCam);
 	pCamFormat->SetFrameRate(frameRate);
+	pCamGrab->SetTargetFPS(frameRate);
 	return 0;
 }
 

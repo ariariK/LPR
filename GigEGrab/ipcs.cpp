@@ -145,6 +145,11 @@ int Ipcs::MessageQueueCreate()
       msq_lpdr.msg_type = 1;
       created = true;
       break;
+
+    case KEY_NUM_MQ_GRAB_IMG:
+      msq_grab_img.msg_type = 1;
+      created = true;
+      break;
   }
 
   // Get Message Queue ID
@@ -227,6 +232,24 @@ int Ipcs::MessageQueueRead(char* data, int flag)
         }
       }
       break;
+
+    case KEY_NUM_MQ_GRAB_IMG:
+      {
+        //if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, 0) == -1)              // blocking 
+        //if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, IPC_NOWAIT) == -1)     // non-blocking
+        if (msgrcv(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0, flag) == -1)    // non-blocking
+        {
+          if (errno != ENOMSG)
+          {
+            msg = string_format("msgrcv failed[%d] : %d", key_num, errno);
+            ERR_LOG(msg);
+
+            return -1;
+          }
+          return 1;
+        }
+      }
+      break;
   }
 
   return 1;
@@ -248,6 +271,16 @@ int Ipcs::MessageQueueWrite(char* data)
 
     case KEY_NUM_MQ_LPDR:
       if (msgsnd(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0)==-1)						// blocking
+      {
+        msg = string_format("msgsnd failed[%d]", key_num);
+        ERR_LOG(msg);
+
+        return -1;
+      }
+      break;
+
+    case KEY_NUM_MQ_GRAB_IMG:
+      if (msgsnd(msqid, (struct message_grab*)data, sizeof(struct grab_data), 0)==-1)						// blocking
       {
         msg = string_format("msgsnd failed[%d]", key_num);
         ERR_LOG(msg);

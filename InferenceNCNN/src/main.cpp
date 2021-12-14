@@ -256,6 +256,9 @@ void* thread_lpr(void* arg)
 
     Ipcs *Mq_Lpdr = new Ipcs(KEY_NUM_MQ_LPDR, 0);
     Mq_Lpdr->MessageQueueCreate();
+
+    Ipcs *Mq_Grab_Img = new Ipcs(KEY_NUM_MQ_GRAB_IMG, 0);
+    Mq_Grab_Img->MessageQueueInit();
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,6 +279,13 @@ void* thread_lpr(void* arg)
 
     while(is_running) 
     {
+        if (Mq_Grab_Img->MessageQueueQNum() < 1)    // empty
+        {
+            usleep(1000000);
+            continue;
+        }
+
+
         boxes.clear();
 #if true   // real code
         
@@ -601,13 +611,14 @@ int main(int argc, char** argv) {
     pthread_t thread[THREAD_MAX_NUM];
     fprintf(stdout, "System has %i processor(s). \n", CPU_NUM);
 
-    cpu_set_t mask_ldetect, mask_locr, mask_lpr;  //CPU core set
-    CPU_ZERO(&mask_ldetect);
-    CPU_ZERO(&mask_locr);
+    //cpu_set_t mask_ldetect, mask_locr, mask_lpr;  //CPU core set
+    cpu_set_t mask_lpr;  //CPU core set
+    //CPU_ZERO(&mask_ldetect);
+    //CPU_ZERO(&mask_locr);
     CPU_ZERO(&mask_lpr);
     /* set cpu mask */
-    CPU_SET(4, &mask_ldetect);
-    CPU_SET(5, &mask_locr);
+    //CPU_SET(4, &mask_ldetect);
+    //CPU_SET(5, &mask_locr);
     CPU_SET(5, &mask_lpr);
     
     /* create thread */

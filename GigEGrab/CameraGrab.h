@@ -36,6 +36,10 @@ protected:
 	bool				bSaveEnable;
 	string			strSavePath;
 
+	bool				bFrameRateMode;		// add. by ariari : 2021.12.10
+	float 			fTargetFPS;				// add. by ariari : 2021.12.10
+	float				fFrameRate;				// add. by ariari : 2021.12.10
+
 	float				fGainValue;
 	float				fGainValueLow;
 	float				fGainValueHigh;
@@ -58,6 +62,8 @@ public:
 
 	int		SetSaveEnable(bool enable);
 	int 	SetSavePath(string path);
+	int		SetFrameRateMode(bool enable);
+	int		SetTargetFPS(float value);
 	int 	SetGainValue(float value);
 	int		SetGainLow(float value);
 	int		SetGainHigh(float value);
@@ -77,6 +83,8 @@ private:
 	Ipcs	*Sm_Grab;
 	Ipcs	*Sm_Res;
 	Ipcs	*Mq_Grab;
+	Ipcs	*Mq_GrabImg;
+	Ipcs	*Sm_Cam;
 
 	struct grab_data{
 		int capWidth;
@@ -86,17 +94,40 @@ private:
 		long msg_type;
 		struct grab_data data;
 	};
+
+	struct cam_param{
+		int capWidth;
+		int capHeight;
+
+		uint64_t	capCount;
+		double		capFPS;
+
+		int64_t		tarClk;
+		double		expMax;
+		double		expMin;
+		double		expCur;
+		
+		int				dnStatus;
+		float			shMax;
+		float			shMin;
+		float			shCur;
+		float			gainMax;
+		float			gainMin;
+		float			gainCur;
+	};
 	
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
 	// IPC : Shared Memory
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
 	struct grab_data st_grab;
+	struct cam_param st_cam;
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
 	// IPC : Message Queue
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
 	struct message msq;
+	struct message msq_img;
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
 
 

@@ -36,7 +36,11 @@ CameraGrab::CameraGrab()
 	msq.data.capWidth = 0;
 	msq.data.capHeight = 0;
 
-  //SharedMemoryCreate();
+  msq_img.msg_type = 1;
+	msq_img.data.capWidth = 0;
+	msq_img.data.capHeight = 0;
+
+	//SharedMemoryCreate();
 	//MessageQueueCreate();
 #else
 #endif
@@ -47,9 +51,16 @@ CameraGrab::CameraGrab()
 	Sm_Res = new Ipcs(KEY_NUM_SM_RES, MEM_SIZE_SM_RES);
 	Sm_Res->SharedMemoryCreate();
 
+	Sm_Cam = new Ipcs(KEY_NUM_SM_CAM, MEM_SIZE_SM_CAM);
+	Sm_Cam->SharedMemoryCreate();
+
 	Mq_Grab = new Ipcs(KEY_NUM_MQ_GRAB, 0);
 	Mq_Grab->MessageQueueCreate();
 	msq.msg_type = 1;
+
+	Mq_GrabImg = new Ipcs(KEY_NUM_MQ_GRAB_IMG, 0);
+	Mq_GrabImg->MessageQueueCreate();
+	msq_img.msg_type = 1;
 }
 
 
@@ -61,11 +72,15 @@ CameraGrab::~CameraGrab()
 
 	Sm_Grab->SharedMemoryFree();
 	Sm_Res->SharedMemoryFree();
+	Sm_Cam->SharedMemoryFree();
 	Mq_Grab->MessageQueueFree();
+	Mq_GrabImg->MessageQueueFree();
 
 	SAFE_DELETE(Sm_Grab);
 	SAFE_DELETE(Sm_Res);
+	SAFE_DELETE(Sm_Cam);
 	SAFE_DELETE(Mq_Grab);
+	SAFE_DELETE(Mq_GrabImg);
 }
 
 bool CameraGrab::Init()
@@ -89,6 +104,20 @@ int CameraGrab::SetSaveEnable(bool enable)
 int CameraGrab::SetSavePath(string path)
 {
 	strSavePath = path;
+
+	return 0;
+}
+
+int CameraGrab::SetFrameRateMode(bool enable)
+{
+	bFrameRateMode = enable;
+
+	return 0;
+}
+
+int CameraGrab::SetTargetFPS(float value)
+{
+	fTargetFPS = value;
 
 	return 0;
 }
@@ -162,21 +191,25 @@ int	CameraGrab::CtrlUserModeGpio()
 int CameraGrab::SetLineSource()
 {
 	static unsigned int debounce_cnt = 0;
+	static const unsigned int debounce_limit = 30;	// 3sec @ 10fps
 
 	// get ExposureTime
 	// Float node
-	int dn;	// 0:on, 1,2:off
-	float gain, expTime;
-	double thValue, thValueLow, thValueHigh; 
+	//int dn;	// 0:on, 1,2:off
+	//float gain, expTime;
+	//double thValue, thValueLow, thValueHigh; 
 	
 	INodeMap& nodeMap = pCam->GetNodeMap();
 	CFloatPtr ptrGain = pCam->GetNodeMap().GetNode("Gain");
 	CFloatPtr exposureTime = nodeMap.GetNode("ExposureTime");
 	CEnumerationPtr ptrLineSource = nodeMap.GetNode("LineSource");
 
-	dn = ptrLineSource->GetIntValue();
-	gain = ptrGain->GetValue();
-	expTime = exposureTime->GetValue();
+	st_cam.capWidth 	= st_grab.capWidth;
+	st_cam.capHeight	= st_grab.capHeight;
+	st_cam.dnStatus 	= ptrLineSource->GetIntValue();	// 0:on, 1,2:off
+	st_cam.gainCur 		= ptrGain->GetValue();
+	st_cam.shCur 			= exposureTime->GetValue();
+	st_cam.expCur 		= (st_cam.gainCur * fExposureValueMax) + st_cam.shCur;
 
 #if false // for debug
 	//Automatic Exposure Time limits
@@ -187,28 +220,17 @@ int CameraGrab::SetLineSource()
 	cout << "ptrAutoXExposureTimeUpperLimit = " << ptrAutoXExposureTimeUpperLimit->GetValue()<< endl;
 #endif
 
-	msg = string_format("[%d] current ExposureTime value = %f[us], current gain value = %f[dB]", dn, exposureTime->GetValue(), ptrGain->GetValue());
+	msg = string_format("[%d] current ExposureTime value = %f[us], current gain value = %f[dB]", st_cam.dnStatus, exposureTime->GetValue(), ptrGain->GetValue());
 	DEBUG_LOG(msg);
 
-	// 현재값
-	thValue = (gain * fExposureValueMax) + expTime;
-
-	// low lmit
-	thValueLow = (fGainValueLow * fExposureValueMax) + fExposureValueLow;
-
-	// high limit
-	thValueHigh = (fGainValueHigh * fExposureValueMax) + fExposureValueHigh;
-
-
-	if (dn == 0)		// led on 
+	if (st_cam.dnStatus == 0)		// led on 
 	{
 		debounce_cnt++;
 
 		// check on -> off
-		//if(debounce_cnt > 50 && thValue < thValueLow)
-		if(thValue < thValueLow)
+		if(st_cam.expCur < st_cam.expMin)
 		{
-			if(debounce_cnt > 50)
+			if(debounce_cnt > debounce_limit)
 			{
 				debounce_cnt = 0;
 
@@ -230,10 +252,9 @@ int CameraGrab::SetLineSource()
 		debounce_cnt++;
 
 		// check off -> on
-		//if(debounce_cnt > 50 && thValue > thValueHigh)
-		if(thValue > thValueHigh)
+		if(st_cam.expCur > st_cam.expMax)
 		{
-			if(debounce_cnt > 50)
+			if(debounce_cnt > debounce_limit)
 			{
 				debounce_cnt = 0;
 
@@ -248,6 +269,8 @@ int CameraGrab::SetLineSource()
 			debounce_cnt = 0;
 		}
 	}
+
+	// sm data
 
 #if false
 	CEnumerationPtr exposureAuto = nodeMap.GetNode("ExposureAuto");
@@ -337,6 +360,11 @@ int CameraGrab::RunGrabbing()
 		ptrAcquisitionMode->SetIntValue(acquisitionModeContinuous);
 		INFO_LOG(string("Acquisition mode set to continuous..."));
 
+		// Get acquisition rate
+		CFloatPtr ptrFrameRate = nodeMap.GetNode("AcquisitionFrameRate");
+		fFrameRate = ptrFrameRate->GetValue();
+		cout << "Frame rate is set to " << fFrameRate << endl;
+
 
 		// Start Acquisition...
 		pCam->BeginAcquisition();
@@ -351,11 +379,50 @@ int CameraGrab::RunGrabbing()
 			INFO_LOG(msg);
 		}
 
+		//INodeMap& nodeMap = pCam->GetNodeMap();
+		// SET shutter ragne : MIN ~ MAX(6.800msec)
+		//Automatic Exposure Time limits
+		//CFloatPtr ptrAutoXExposureTimeLowerLimit = nodeMap.GetNode("AutoExposureTimeLowerLimit");
+		//ptrAutoXExposureTimeLowerLimit->SetValue(33);			// maybe.. auto...
+		//CFloatPtr ptrAutoXExposureTimeUpperLimit = nodeMap.GetNode("AutoExposureTimeUpperLimit");
+		//ptrAutoXExposureTimeUpperLimit->SetValue(6800);	// us
+
+		// SET gain range : MIN ~ MAX(8.999dB)
+		//CFloatPtr ptrGainLowerLimit = nodeMap.GetNode("AutoGainLowerLimit");
+		//ptrGainLowerLimit->SetValue(0);				// 0dB
+		//CFloatPtr ptrGainUpperLimit = nodeMap.GetNode("AutoGainUpperLimit");
+		//ptrGainUpperLimit->SetValue(8.999);			// 8.999dB
+
+		// Initialize
+		CIntegerPtr ptrThroughputLimit = nodeMap.GetNode("DeviceLinkThroughputLimit");
+		CFloatPtr ptrAutoXExposureTimeLowerLimit = nodeMap.GetNode("AutoExposureTimeLowerLimit");
+		CFloatPtr ptrAutoXExposureTimeUpperLimit = nodeMap.GetNode("AutoExposureTimeUpperLimit");
+		CFloatPtr ptrGainLowerLimit = nodeMap.GetNode("AutoGainLowerLimit");
+		CFloatPtr ptrGainUpperLimit = nodeMap.GetNode("AutoGainUpperLimit");
+
+		ptrAutoXExposureTimeUpperLimit->SetValue(6800);	// us
+		ptrGainUpperLimit->SetValue(8.999);							// 8.999dB
+
+		st_cam.capCount = 0;
+		st_cam.tarClk 	= ptrThroughputLimit->GetValue();
+		st_cam.expMin 	= (fGainValueLow * fExposureValueMax) + fExposureValueLow;
+		st_cam.expMax 	= (fGainValueHigh * fExposureValueMax) + fExposureValueHigh;
+		st_cam.shMin		= ptrAutoXExposureTimeLowerLimit->GetValue();
+		st_cam.shMax		= ptrAutoXExposureTimeUpperLimit->GetValue();
+		st_cam.gainMin	= ptrGainLowerLimit->GetValue();
+		st_cam.gainMax	= ptrGainUpperLimit->GetValue();
+
 		// Grabbing loop...
 		int pack_size = 100;
-		int64_t imageCnt = 0;
+		//int64_t imageCnt = 0;
 		int64_t runningTime = 0;
 		int64_t cap_cnt = 0;
+		
+		int skip_cnt = 1;
+		float rate = (fFrameRate/fTargetFPS);
+		skip_cnt = (rate > 1) ? (int)rate : skip_cnt;
+		skip_cnt = (skip_cnt < 1) ? 1 : skip_cnt;
+		cout << "skip count = " << skip_cnt << endl;
 		do {
 			try
 			{
@@ -380,11 +447,19 @@ int CameraGrab::RunGrabbing()
 					pResultImage->Release();
 					continue;
 				}
-				else
+				else	// OK
 				{
-					cap_cnt++;
-					if(cap_cnt%3) continue;
-					cap_cnt=0;
+					#if true
+					if (!bFrameRateMode)
+					{
+						cap_cnt++;
+						//if(cap_cnt%3) continue;
+						if(cap_cnt%skip_cnt) continue;
+						cap_cnt=0;
+					}
+					#endif
+					
+
 					// optional parameter.
 					//
 					const size_t width = pResultImage->GetWidth();
@@ -414,13 +489,24 @@ int CameraGrab::RunGrabbing()
 					// write to shared memory
 					ImagePtr convertedImage = pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
 					Sm_Grab->SharedMemoryWrite((char*)convertedImage->GetData(), convertedImage->GetBufferSize());
+					Sm_Cam->SharedMemoryWrite((char *)&st_cam, sizeof(struct cam_param));
 
+					//////////////////////////////////////////////////////////////////////////////////////////////
+					// Update for lpr
+					// Use message queue
+					if (Mq_GrabImg->MessageQueueQNum() < 1)
+					{
+						msq.data.capWidth = width;
+						msq.data.capHeight = height;
+						Mq_GrabImg->MessageQueueWrite((char*)&msq);
+					}
+					//////////////////////////////////////////////////////////////////////////////////////////////
 #if true
 					if (bSaveEnable) 
 					{
 						ostringstream filename_tmp;			// 임시 저장파일
 						ostringstream filename;					// 실시간 모니터링 용
-						//filename << strSavePath << "/Grab-" << gComm.string_format("%09d", imageCnt) << ".jpg";
+						//filename << strSavePath << "/Grab-" << gComm.string_format("%09d", st_cam.capCount) << ".jpg";
 						filename << strSavePath << "/monitor_real.jpg";
 						filename_tmp << strSavePath << "/monitor_real_tmp.jpg";
 
@@ -443,7 +529,7 @@ int CameraGrab::RunGrabbing()
 					if (bSaveEnable) 
 					{
 						ostringstream filename;
-						filename << strSavePath << "/Grab-" << gComm.string_format("%09d", imageCnt) << ".jpg";
+						filename << strSavePath << "/Grab-" << gComm.string_format("%09d", st_cam.capCount) << ".jpg";
 						//time_t timer = time(nullptr);
 						//filename << strSavePath << "/Grab-" << timer << ".jpg";
 						try 
@@ -463,21 +549,23 @@ int CameraGrab::RunGrabbing()
 					}
 #endif
 					
-					imageCnt++;
+					st_cam.capCount++;
 					system_clock::time_point end = system_clock::now();
 					nanoseconds nano = end - start;
 					runningTime += nano.count()/1000000;	// msec
-					if (imageCnt % pack_size == 0)
+					if (st_cam.capCount % pack_size == 0)
 					{
+						st_cam.capFPS = (double)(1000*pack_size)/runningTime;
+
 						// elapsed time : end
-						//cout << "Grabbed image " << imageCnt << ", width = " << width << ", height = " << height << endl;
+						//cout << "Grabbed image " << st_cam.capCount << ", width = " << width << ", height = " << height << endl;
 						//system_clock::time_point end = system_clock::now();
 						//nanoseconds nano = end - start;
 
 						//cout << "Elapsed time(msec) : " << nano.count()/1000000 << endl;
-						msg = "Grabbed image: " + gComm.string_format("%09d", imageCnt) + ", width = " + to_string(width) + ", height = " + to_string(height) + \
-									"\tAverage FPS: " + gComm.string_format("%.2f", (double)(1000*pack_size)/runningTime);
-						//cout << "Grabbed image: " << gComm.string_format("%8d", imageCnt) << ", width = " << width << ", height = " << height
+						msg = "Grabbed image: " + gComm.string_format("%09d", st_cam.capCount) + ", width = " + to_string(width) + ", height = " + to_string(height) + \
+									"\tAverage FPS: " + gComm.string_format("%.2f", st_cam.capFPS);
+						//cout << "Grabbed image: " << gComm.string_format("%8d", st_cam.capCount) << ", width = " << width << ", height = " << height
 						//		 << "\tAverage FPS: " << gComm.string_format("%.2f", (double)(1000*pack_size)/runningTime) << endl;
 
 						//cout << msg << endl;
@@ -489,7 +577,7 @@ int CameraGrab::RunGrabbing()
 				}
 
 				// LED - ST2 동작상태표시
-				CtrlGPIO(fd, (imageCnt>>2)&0x1);
+				CtrlGPIO(fd, (st_cam.capCount>>2)&0x1);
 
 				pResultImage->Release();
 

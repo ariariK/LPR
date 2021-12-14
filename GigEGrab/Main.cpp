@@ -12,11 +12,54 @@
 #include <fstream>		// ifstream
 #include <algorithm>	// remove_if
 #include <chrono>
+#include <pthread.h>
+#include <signal.h>
 
 #include "Typedef.h"
 #include "CameraManager.h"
 
 #define LOG_NAME	"[GigEGrab]"
+
+// add. by ariari : 2021.12.07 - begin
+CameraManager *pCamMan;
+void* thread_grab(void* arg)
+{
+	//CameraManager *pCamMan = (CameraManager*)arg;
+	pCamMan = (CameraManager*)arg;
+
+	// Running Grabbing
+	pCamMan->RunGrabbing();
+
+	// Release Camera
+	pCamMan->CameraRelease();
+
+	// Exit
+	SAFE_DELETE(pCamMan);
+
+	return nullptr;
+}
+// add. by ariari : 2021.12.07 - end
+
+int signalHandler(int sig, void *ptr){
+	
+	//static my_struct saved = NULL;
+
+	if(sig==SIGINT){
+		printf("signal SIGINT\n");
+
+		SAFE_DELETE(pCamMan);
+
+		sleep(1);
+
+		exit(0);
+	}
+	if(sig==SIGQUIT){
+		printf("signal SIGQUIT\n");
+	}
+
+	return 0;
+}
+
 int main(int argc, char** argv)
 {
 	// 프로그램 초기값
@@ -34,6 +77,9 @@ int main(int argc, char** argv)
 	float fExposureLow	= 5000.0;
 	float fExposureHigh	= 9000.0;
 	string savePath;
+
+	signal(SIGINT, (void (*)(int))signalHandler);
+  signal(SIGQUIT, (void (*)(int))signalHandler);
 
 	msg = "LOG_LEVEL = " + to_string(LOG_LEVEL);
 	INFO_LOG(msg);
@@ -173,6 +219,62 @@ int main(int argc, char** argv)
 	INFO_LOG(msg);
 	INFO_LOG(string("#################################################################################################"));
 
+#if true		// new using thread
+
+	// 객체 생성
+	CameraManager *pCamMan = new CameraManager();
+
+	// 초기화 - 카메라 검색 및 상태 확인
+	INFO_LOG(string("#################################################################################################"));
+	INFO_LOG(string("Starting initialize GigE Camera!!!"));
+	if (!pCamMan->Init())
+	{
+		//cout << "Failure initialize GigE Camera!!!" << endl;
+		EMERG_LOG(string("Failure initialize GigE Camera!!!, Exit Program!!!"));
+		INFO_LOG(string("#################################################################################################"));
+
+		SAFE_DELETE(pCamMan);
+
+		closelog();
+		return -1;
+	}
+	
+	// Ready Camera
+	pCamMan->CameraReady(0);
+
+	// Setting Camera Format
+	pCamMan->SetCapWidth(nCapWidth);
+	pCamMan->SetCapHeight(nCapHeight);
+
+	pCamMan->SetOffsetX(nOffsetX);
+	pCamMan->SetOffsetY(nOffsetY);
+
+	pCamMan->SetFrameRateMode(bFrameRateMode);
+	pCamMan->SetFrameRate(fFrameRate);
+
+	//pCamMan->SetGpioUserMode(fNightGain);
+	pCamMan->SetGpioStrobeMode();
+	pCamMan->SetGainLow(fNightGainLow);
+	pCamMan->SetGainLow(fNightGainLow);
+	pCamMan->SetGainHigh(fNightGainHigh);
+	pCamMan->SetExposureMax(fExposureMax);
+	pCamMan->SetExposureLow(fExposureLow);
+	pCamMan->SetExposureHigh(fExposureHigh);
+	
+	pCamMan->SetSaveEnable(bSaveEnable);
+	pCamMan->SetSavePath(savePath);
+	INFO_LOG(string("#################################################################################################"));
+
+
+	pthread_t thread;
+	cpu_set_t mask_grab;
+	CPU_ZERO(&mask_grab);
+	CPU_SET(4, &mask_grab);
+	pthread_create(&thread, NULL, thread_grab, pCamMan);
+	pthread_join(thread, NULL);
+
+#else
+
 	// 객체 생성
 	CameraManager *pCamMan = new CameraManager();
 
@@ -225,6 +327,7 @@ int main(int argc, char** argv)
 
 	// Exit
 	SAFE_DELETE(pCamMan);
+#endif
 
 	closelog();
 	return 0;

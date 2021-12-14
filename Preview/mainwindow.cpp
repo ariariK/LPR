@@ -51,6 +51,9 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    // 동작시간
+    startTime = time(NULL); // 현재 시간을 받음
+
     version = "Ver. Unknown";
     QString ver_file("/etc/.version");
     if (QFile::exists(ver_file) == true) 
@@ -104,6 +107,10 @@ MainWindow::MainWindow(QWidget *parent)
     //font_lpr.setPixelSize(64);
     font_lpr.setPixelSize(48);
     font_lpr.setBold(true);
+
+    // debug font
+    font_dbg.setPixelSize(20);
+    font_dbg.setBold(true);
 #endif
     
     GetParameters();
@@ -120,6 +127,9 @@ MainWindow::MainWindow(QWidget *parent)
 #endif
     Sm_Lpr = new Ipcs(KEY_NUM_SM_LPR, MEM_SIZE_SM_LPR);
     Sm_Lpr->SharedMemoryInit();
+
+    Sm_Cam = new Ipcs(KEY_NUM_SM_CAM, MEM_SIZE_SM_CAM);
+    Sm_Cam->SharedMemoryInit();
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(Update()));
@@ -151,6 +161,7 @@ MainWindow::~MainWindow()
 #else
 #endif
     SAFE_DELETE(Sm_Lpr);
+    SAFE_DELETE(Sm_Cam);
 
     closelog();
 
@@ -185,6 +196,42 @@ void MainWindow::CheckScreenGeometry()
         rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.5, ui->screen->height() - 190,  (ui->screen->width()/3)*0.5, 200);
 #endif        
     }
+}
+
+QString MainWindow::GetCPUTemp()
+{
+    QFile file("/sys/class/thermal/thermal_zone0/temp");
+    if(!file.open(QFile::ReadOnly | QFile::Text))
+    {
+        qDebug() << " Could not open the file for reading";
+        return "";
+    }
+
+    QTextStream in(&file);
+    //QString myText = in.readAll();
+    QString myText = in.readLine();
+    //qDebug() << myText;
+    file.close();
+
+    return QString::number((myText.toDouble()/1000), 'f', 2);
+}
+
+QString MainWindow::GetRunningTime()
+{
+    time_t curTime;
+
+    curTime = time(NULL);              // 현재 시간을 받음
+    double diff_timer = difftime(curTime, startTime);
+
+    int day = (int)(diff_timer/60)/60/24;
+    int hour = (int)((diff_timer/60)/60)%24;
+    int min = (int)(diff_timer/60)%60;
+    int sec = (int)diff_timer%60;
+
+    QString strElapsedTime;
+    strElapsedTime.sprintf("%02d:%02d:%02d:%02d", day, hour, min, sec);
+
+    return strElapsedTime;
 }
 
 void MainWindow::GetCarNoInfo(string strCarNo)
@@ -282,7 +329,8 @@ void MainWindow::Update()
     msg = string_format("st_grab.capWidth = %d, st_grab.capHeight = %d, capWidth = %d, capHeight = %d\n", st_grab.capWidth, st_grab.capHeight, capWidth, capHeight);
     INFO_LOG(msg);
 #elif (IPC_MODE == IPC_MQ)
-    if (!capWidth || !capHeight)
+    //if (!capWidth || !capHeight)
+    if (capWidth <= 0|| capHeight <= 0)
     {
         for(int i=0; i<10; i++)
         {
@@ -302,7 +350,7 @@ void MainWindow::Update()
 #else
 #endif
 
-    if (capWidth && capHeight)
+    if (capWidth > 0 && capHeight > 0)
     {
         CheckScreenGeometry();
 
@@ -327,6 +375,10 @@ void MainWindow::Update()
         //Mat cvimg = cv::Mat(convertedImage->GetHeight(), convertedImage->GetWidth(), CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
         Mat cvimg = cv::Mat(capHeight, capWidth, CV_8UC1, (char *)buffer);
         //cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(msq.data.capWidth - 380, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
+
+        // background
+        //cv::rectangle(cvimg, Rect(Point(20,10) + Point(0,50), Point(20,10) + Point(400,0)), Scalar(0,0,0),-1);
+        cv::rectangle(cvimg, Rect(Point(20,10), Point(400,60)), Scalar(0,0,0),-1);
         cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
 
 
@@ -377,6 +429,72 @@ void MainWindow::Update()
         painter->drawText(rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strNoFront.c_str());
         painter->drawPixmap(rect_center.x(), rect_center.y()+76, rect_center.width(), 48, QPixmap(strHangulFileNameB.c_str()));
         painter->drawText(rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strNoBack.c_str());
+
+        // debug message(right/top)
+        if (QFile::exists("/media/usb0/debug_enable"))
+        {
+            if (Sm_Cam->SharedMemoryRead((char *)&st_cam) < 0)
+            {
+                Sm_Cam->SharedMemoryInit();
+            }
+
+            QRectF debug_rect(screenWidth/2, 20, screenWidth/2-20, screenHeight-240);
+            //painter->setPen(QColor(Qt::yellow));
+            painter->setFont(font_dbg);
+            painter->setBrush(QColor(0, 0, 0));
+            painter->drawRect(debug_rect);
+
+            msg = string_format(" Program Running Time : %s", GetRunningTime().toStdString().c_str());
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            
+            debug_rect.setY(debug_rect.y()+30);
+            msg = string_format(" Total Captured Frame : %ld, %.2f[FPS]", st_cam.capCount, st_cam.capFPS);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+
+            debug_rect.setY(debug_rect.y()+30);
+            msg = string_format(" Target Clock Value : %ld[Hz]", st_cam.tarClk);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+
+            debug_rect.setY(debug_rect.y()+30);
+            msg = string_format(" Exposure - MIN : %.2f", st_cam.expMin);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            debug_rect.setY(debug_rect.y()+25);
+            msg = string_format(" Exposure - MAX : %.2f", st_cam.expMax);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            
+            debug_rect.setY(debug_rect.y()+30);
+            msg = string_format(" Shutter - MIN : %.2f[msec]", st_cam.shMin/1000);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            debug_rect.setY(debug_rect.y()+25);
+            msg = string_format(" Shutter - MAX : %.2f[msec]", st_cam.shMax/1000);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            
+            debug_rect.setY(debug_rect.y()+30);
+            msg = string_format(" Gain - MIN : %.2f", st_cam.gainMin);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            debug_rect.setY(debug_rect.y()+25);
+            msg = string_format(" Gain - MAX : %.2f[dB]", st_cam.gainMax);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            
+            debug_rect.setY(debug_rect.y()+30);
+            msg = string_format(" Current DN(IR) Status : %s", st_cam.dnStatus ? "OFF" : "ON");
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            debug_rect.setY(debug_rect.y()+25);
+            msg = string_format(" Current Exposure Value : %.2f", st_cam.expCur);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            debug_rect.setY(debug_rect.y()+25);
+            msg = string_format(" Current Shutter Value : %.3f[msec]", st_cam.shCur/1000);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            debug_rect.setY(debug_rect.y()+25);
+            msg = string_format(" Current Gain Value : %.3f[dB]", st_cam.gainCur);
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+
+            debug_rect.setY(debug_rect.y()+30);
+            msg = string_format(" CPU Temperature : %s", GetCPUTemp().toStdString().c_str());
+            painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            
+
+        }
 
 #if false
         carNo[0] = 51;
@@ -457,6 +575,9 @@ void MainWindow::Update()
                                             img.rows,
                                             QImage::Format_RGB888));
         ui->screen->setPixmap(picture.scaled(ui->screen->size(), Qt::KeepAspectRatio));
+
+        ui->screen->pixmap()->save("/oem/Screen_shot/monitor_tmp.jpg");
+        rename("/oem/Screen_shot/monitor_tmp.jpg", "/oem/Screen_shot/monitor.jpg");
     }
 }
 

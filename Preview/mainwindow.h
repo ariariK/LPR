@@ -34,6 +34,7 @@ public:
 
 
     QFont font_lpr;
+    QFont font_dbg;
     QRectF rect_city;
     QRectF rect_left;
     QRectF rect_center;
@@ -44,6 +45,8 @@ private slots:
     void Run();
 
 private:
+    time_t startTime;
+
     QTimer *timer;
 
     Ui::MainWindow *ui;
@@ -65,6 +68,8 @@ private:
     void GetParameters();
     void CheckScreenGeometry();
     void GetCarNoInfo(std::string strCarNo);
+    QString GetCPUTemp();
+    QString GetRunningTime();
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////	
 	// IPC
@@ -73,6 +78,7 @@ private:
     Ipcs	*Sm_Res;
     Ipcs	*Sm_Lpr;
 	Ipcs	*Mq_Grab;
+    Ipcs	*Sm_Cam;
 
     struct grab_data{
 		int capWidth;
@@ -83,9 +89,31 @@ private:
 		struct grab_data data;
 	};
 
+    struct cam_param{
+		int capWidth;
+		int capHeight;
+
+		uint64_t	capCount;
+        double		capFPS;
+
+        int64_t		tarClk;
+		double		expMax;
+		double		expMin;
+		double		expCur;
+		
+		int				dnStatus;
+		float			shMax;
+		float			shMin;
+		float			shCur;
+		float			gainMax;
+		float			gainMin;
+		float			gainCur;
+	};
+
     char buffer[MEM_SIZE_SM];
     struct grab_data st_grab;
 	struct message msq;
+    struct cam_param st_cam;
 	//////////////////////////////////////////////////////////////////////////////////////////////////////	
 
 };
