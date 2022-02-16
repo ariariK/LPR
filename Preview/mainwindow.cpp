@@ -176,6 +176,25 @@ void MainWindow::GetParameters()
 
 void MainWindow::CheckScreenGeometry()
 {
+    // add. by ariari : 2022.02.16 - begin
+    // check connection 
+    // /sys/class/drm/card0-HDMI-A-1/status : connected or disconnected
+    QFile file("/sys/class/drm/card0-HDMI-A-1/status");
+    if(!file.open(QFile::ReadOnly | QFile::Text))
+    {
+        qDebug() << " Could not open the file for reading";
+        //return "";
+    }
+
+    QTextStream in(&file);
+    QString statusTxt = in.readLine();
+    file.close();
+
+    // HDMI disconnected
+    if(statusTxt.compare("disconnected") == 0) return;
+    // add. by ariari : 2022.02.16 - end
+
+
     QRect rec = QApplication::desktop()->screenGeometry();
     if (screenWidth != rec.width() || screenHeight != rec.height())
     {
@@ -350,9 +369,13 @@ void MainWindow::Update()
 #else
 #endif
 
+    // add. by ariari : 2022.02.16
+    CheckScreenGeometry();  
+
     if (capWidth > 0 && capHeight > 0)
     {
-        CheckScreenGeometry();
+        // rem. by ariari : 2022.02.16
+        //CheckScreenGeometry();  
 
 #if (IPC_MODE == IPC_SM)
 #elif (IPC_MODE == IPC_MQ)
