@@ -16,7 +16,8 @@ SOURCES += \
     threaddeveth1.cpp \
     threaddevusb0.cpp \
     threaddevusb1.cpp \
-    threaddevusb2.cpp
+    threaddevusb2.cpp \
+    threaddevgpio.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -25,7 +26,8 @@ HEADERS += \
     threaddeveth1.h \
     threaddevusb0.h \
     threaddevusb1.h \
-    threaddevusb2.h
+    threaddevusb2.h \
+    threaddevgpio.h
 
 FORMS += \
     mainwindow.ui

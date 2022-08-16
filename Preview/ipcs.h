@@ -28,6 +28,17 @@
 #define KEY_NUM_MQ_LPDR     3456          // 메시지큐 - LPDR
 #define MQ_LPDR_MAX_QSIZE   100
 
+//#define EN_LIST_DISP    // add. by ariari : 2022.07.19(for 도로공단 시험평가)
+#ifdef EN_LIST_DISP
+// add. by ariari : 2022.05.20 - begin
+#define KEY_NUM_MQ_LPDR_INFO        4456          // 메시지큐 - LPDR_INFO(for preview)
+#define MQ_LPDR_INFO_MAX_QSIZE      10            // 이미지내 번호판 검출 정보(다중검출)
+
+#define KEY_NUM_SM_LPDR       3237          // 공유메모리 - 정보
+#define MEM_SIZE_SM_LPDR	    1024           // 공유메모리 크기
+// add. by ariari : 2022.05.20 - end
+#endif
+
 class Ipcs
 {
 //////////////////////////////////////////////////////////////////////////////////////////////////////	
@@ -102,6 +113,34 @@ public:
   };
   struct message_lpdr msq_lpdr;
 
+#ifdef EN_LIST_DISP
+  // add. by ariari : 2022.05.20 - begin
+  struct lpdr_info{
+    char status[32];    // 수배종류
+    char carNo[32];     // 차량정보
+    
+    // RECT
+    int x;              // rect[0]
+    int y;              // rect[1]    
+    int endX;           // rect[2]
+    int endY;           // rect[3]
+
+    // score([0,100]) : add. by ariari : 2022.05.20
+    int score;          // score [0,1]->[0,100]
+  };
+  
+  struct message_lpdr_multi{
+      long detect_num;
+      struct lpdr_info data[10];
+  };
+
+  struct lpdr_result{
+      long msg_type;
+      struct message_lpdr_multi data;
+  };
+  struct lpdr_result msq_lpdr_result;
+  // add. by ariari : 2022.05.20 - end
+#endif
 
 	int MessageQueueCreate();
   int MessageQueueInit();

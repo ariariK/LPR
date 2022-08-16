@@ -430,3 +430,93 @@ int CameraFormat::Set3_3Voltage(bool value)
 
 	return 1;
 }
+
+// add. by ariar : 2022.05.22 - begin
+// SetImageProcess
+int CameraFormat::SetImageProcess(bool bImgProcEn, bool bGammaEn, bool bSharpEn, int nSharpAuto, float fGamma, int nSharp)
+{
+	// It retrieves GenICam nodemap
+  INodeMap& nodeMap = pCam->GetNodeMap();
+
+	if(bImgProcEn == true)	// enable
+	{
+		// 1. On Board Color Process Enable
+		CBooleanPtr ptrProcessEabled = nodeMap.GetNode("OnBoardColorProcessEnabled");
+		if (!IsAvailable(ptrProcessEabled) || !IsWritable(ptrProcessEabled))
+		{
+			//cout << "Unable to set ptrProcessEabled. Aborting..." << endl << endl;
+			EMERG_LOG(string("Unable to set ptrProcessEabled. Aborting..."));
+		}
+		else 
+		{
+			ptrProcessEabled->SetValue(bImgProcEn);
+		}
+		
+		// 2. Gamma Enabled
+		CBooleanPtr ptrGammaEnabled = nodeMap.GetNode("GammaEnabled");
+		if (!IsAvailable(ptrGammaEnabled) || !IsWritable(ptrGammaEnabled))
+		{
+			//cout << "Unable to set ptrGammaEnabled. Aborting..." << endl << endl;
+			EMERG_LOG(string("Unable to set ptrGammaEnabled. Aborting..."));
+		}
+		else 
+		{
+			ptrGammaEnabled->SetValue(bGammaEn);	
+
+			// 2.1
+			if(bGammaEn == true)
+			{
+				CFloatPtr ptrGamma = nodeMap.GetNode("Gamma");
+				ptrGamma->SetValue(fGamma);
+			}
+		}
+
+		// 3. Sharpness Enabled
+		CBooleanPtr ptrSharpnessEnabled = nodeMap.GetNode("SharpnessEnabled");
+		if (!IsAvailable(ptrSharpnessEnabled) || !IsWritable(ptrSharpnessEnabled))
+		{
+			//cout << "Unable to set ptrSharpnessEnabled. Aborting..." << endl << endl;
+			EMERG_LOG(string("Unable to set ptrSharpnessEnabled. Aborting..."));
+		}
+		else 
+		{
+			ptrSharpnessEnabled->SetValue(bSharpEn);	
+
+			// 3.1
+			if(bSharpEn == true)
+			{
+				CEnumerationPtr ptrSharpnessAuto = nodeMap.GetNode("SharpnessAuto");
+				if (!IsAvailable(ptrSharpnessAuto) || !IsWritable(ptrSharpnessAuto))
+				{
+						cout << "Unable to set ptrSharpnessAuto. Aborting..." << endl << endl;
+						EMERG_LOG(string("Unable to set ptrSharpnessAuto. Aborting..."));
+				}
+				ptrSharpnessAuto->SetIntValue(nSharpAuto==0 ? 0 : 2);
+				
+				// SharpnessAuto = off(0)
+				if(nSharpAuto == 0)
+				{
+					CIntegerPtr ptrSharpness = nodeMap.GetNode("Sharpness");
+					ptrSharpness->SetValue(nSharp);
+				}
+			}
+		}
+	}
+	else 
+	{
+		// 1. On Board Color Process Enable
+		CBooleanPtr ptrProcessEabled = nodeMap.GetNode("OnBoardColorProcessEnabled");
+		if (!IsAvailable(ptrProcessEabled) || !IsWritable(ptrProcessEabled))
+		{
+			//cout << "Unable to set ptrProcessEabled. Aborting..." << endl << endl;
+			EMERG_LOG(string("Unable to set ptrProcessEabled. Aborting..."));
+		}
+		else 
+		{
+			ptrProcessEabled->SetValue(bImgProcEn);
+		}
+	}
+
+	return 1;
+}
+// add. by ariar : 2022.05.22 - end

@@ -154,6 +154,8 @@ public:
   int SendPacketImage();
   int RecvPacketPatrolResponse();
   int UpdateImageList();
+  // add. by ariari : 2022.02.22
+  int RecvDummy();
 
   ElPatrolHeader    patrolHeader;
   int SetDeleteInfo(time_t timestamp, string carNumber);

@@ -269,6 +269,12 @@ int CameraManager::SetExposureHigh(float value)
 	return 0;
 }
 
+int CameraManager::SetImageProcess(bool bImgProcEn, bool bGammaEn, bool bSharpEn, int nSharpAuto, float fGamma, int nSharp)
+{
+	pCamFormat->SetImageProcess(bImgProcEn, bGammaEn, bSharpEn, nSharpAuto, fGamma, nSharp);
+	return 0;
+}
+
 int CameraManager::DoConnection()
 {
 	return 0;

@@ -76,6 +76,15 @@ int main(int argc, char** argv)
 	float fExposureMax  = 9000.0;
 	float fExposureLow	= 5000.0;
 	float fExposureHigh	= 9000.0;
+	// add. by ariari : 2022.05.18 - begin
+	bool bImgProcEn			= true;
+	bool bGammaEn				= true;
+	bool bSharpEn  			= true;
+	float fGamma				= 1.5;
+	int nSharpAuto			= 0;	// 0: off, 2: continuous
+	int nSharp					= 4000;
+	// add. by ariari : 2022.05.18 - end
+
 	string savePath;
 
 	signal(SIGINT, (void (*)(int))signalHandler);
@@ -181,6 +190,32 @@ int main(int argc, char** argv)
 			{
 				savePath = value;
 			}
+			// add. by ariari : 2022.05.18 - begin
+			else if (name.compare("imgProcEnable") == 0)
+			{
+				bImgProcEn = stoi(value) ? true : false;
+			}
+			else if (name.compare("gammaEnable") == 0)
+			{
+				bGammaEn = stoi(value) ? true : false;
+			}
+			else if (name.compare("sharpEnable") == 0)
+			{
+				bSharpEn = stoi(value) ? true : false;
+			}
+			else if (name.compare("gamma") == 0)
+			{
+				fGamma = stof(value);
+			}
+			else if (name.compare("sharpAuto") == 0)
+			{
+				nSharpAuto = stoi(value);
+			}
+			else if (name.compare("sharp") == 0)
+			{
+				nSharp = stoi(value);
+			}
+			// add. by ariari : 2022.05.18 - end
 			/////////////////////////////////////////////////////////////////////////////////////////////////////////
 		};
 
@@ -217,6 +252,20 @@ int main(int argc, char** argv)
 	INFO_LOG(msg);
 	msg = ">> fExposureHigh : " + to_string(fExposureHigh);
 	INFO_LOG(msg);
+	// add. by ariari : 2022.05.18 - begin
+	msg = ">> bImgProcEn : " + to_string(bImgProcEn);
+	INFO_LOG(msg);
+	msg = ">> bGammaEn : " + to_string(bGammaEn);
+	INFO_LOG(msg);
+	msg = ">> bSharpEn : " + to_string(bSharpEn);
+	INFO_LOG(msg);
+	msg = ">> fGamma : " + to_string(fGamma);
+	INFO_LOG(msg);
+	msg = ">> nSharpAuto : " + to_string(nSharpAuto);
+	INFO_LOG(msg);
+	msg = ">> nSharp : " + to_string(nSharp);
+	INFO_LOG(msg);
+	// add. by ariari : 2022.05.18 - end
 	INFO_LOG(string("#################################################################################################"));
 
 #if true		// new using thread
@@ -260,6 +309,9 @@ int main(int argc, char** argv)
 	pCamMan->SetExposureMax(fExposureMax);
 	pCamMan->SetExposureLow(fExposureLow);
 	pCamMan->SetExposureHigh(fExposureHigh);
+
+	// add. by ariari : 2022.05.18
+	pCamMan->SetImageProcess(bImgProcEn, bGammaEn, bSharpEn, nSharpAuto, fGamma, nSharp);
 	
 	pCamMan->SetSaveEnable(bSaveEnable);
 	pCamMan->SetSavePath(savePath);
@@ -314,6 +366,9 @@ int main(int argc, char** argv)
 	pCamMan->SetExposureMax(fExposureMax);
 	pCamMan->SetExposureLow(fExposureLow);
 	pCamMan->SetExposureHigh(fExposureHigh);
+
+	// add. by ariari : 2022.05.18
+	pCamMan->SetImageProcess(bImgProcEn, bGammaEn, bSharpEn, nSharpAuto, fGamma, nSharp);
 	
 	pCamMan->SetSaveEnable(bSaveEnable);
 	pCamMan->SetSavePath(savePath);

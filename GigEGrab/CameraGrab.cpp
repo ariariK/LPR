@@ -21,6 +21,12 @@
 #include "CameraGrab.h"
 
 #define FD_GPIO_ST2	"/sys/class/gpio/gpio158/value"
+// add. by ariari : 2022.02.17 - begin
+// 1 : AUTO, 0 : Force OFF
+#define FD_GPIO_CAM_SW	"/sys/class/gpio/gpio146/value"	// GPIO4_C2, 스위치 신호상태(input, H:AUTO, LOW:Force OFF)
+#define FD_GPIO_CAM_STATE	"/sys/class/gpio/gpio52/value"	// GPIO1_C4, (output, 0 : Forec-OFF, 1 : AUTO)
+// add. by ariari : 2022.02.17 - end
+
 
 using namespace std;
 using namespace chrono;
@@ -223,50 +229,93 @@ int CameraGrab::SetLineSource()
 	msg = string_format("[%d] current ExposureTime value = %f[us], current gain value = %f[dB]", st_cam.dnStatus, exposureTime->GetValue(), ptrGain->GetValue());
 	DEBUG_LOG(msg);
 
-	if (st_cam.dnStatus == 0)		// led on 
-	{
-		debounce_cnt++;
-
-		// check on -> off
-		if(st_cam.expCur < st_cam.expMin)
-		{
-			if(debounce_cnt > debounce_limit)
-			{
-				debounce_cnt = 0;
-
-				//ptrLineSource->SetIntValue(2);
-				ptrLineSource->SetIntValue(1);	// org(off)
-				//ptrLineSource->SetIntValue(0);
-
-				msg = string_format("[OFF] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
-				INFO_LOG(msg);
-			}
-		}
-		else 
-		{
-			debounce_cnt = 0;
-		}
+	// add. by ariari : 2022.02.17 - begin
+	// read value
+	int fd_sw = open(FD_GPIO_CAM_SW, O_RDONLY);
+	if (fd_sw == -1) {
+		ERR_LOG(string("Unable to open /sys/class/gpio/gpio_cam_sw/value"));
+		return -1;	// add. by ariari : 2022.02.17
 	}
-	else			// led off
-	{
-		debounce_cnt++;
+	
+	char buf[16];
+	int length = read(fd_sw, buf, 16);
+	int value = atoi(buf);	// 1 : AUTO, 0 : Force OFF
+	//cout << "status of switch = " << value << endl;
 
-		// check off -> on
-		if(st_cam.expCur > st_cam.expMax)
+	close(fd_sw);
+	// add. by ariari : 2022.02.17 - end
+
+#if 0	// rem. by ariari : 2022.07.19(use real H/W)
+	// add. by ariari : 2022.05.10 - begin
+	// =================================================
+	value = 1;	// for test
+	// =================================================
+	// add. by ariari : 2022.05.10 - end
+#endif	
+	
+	// new - force off
+	if(value == 0)	// force off
+	{
+		// init
+		debounce_cnt = 0;
+		ptrLineSource->SetIntValue(1);	// off
+
+		// immediate change (CAM_STATE : OFF)
+		msg = string_format("echo 0 > %s", FD_GPIO_CAM_STATE);
+		system(msg.c_str());
+	}
+	else 	// add. by ariari : 2022.02.17
+	{
+		// immediate change (CAM_STATE : ON)
+		msg = string_format("echo 1 > %s", FD_GPIO_CAM_STATE);
+		system(msg.c_str());
+
+		// org - auto control mode
+		if (st_cam.dnStatus == 0)		// led on 
 		{
-			if(debounce_cnt > debounce_limit)
+			debounce_cnt++;
+
+			// check on -> off
+			if(st_cam.expCur < st_cam.expMin)
+			{
+				if(debounce_cnt > debounce_limit)
+				{
+					debounce_cnt = 0;
+
+					//ptrLineSource->SetIntValue(2);
+					ptrLineSource->SetIntValue(1);	// org(off)
+					//ptrLineSource->SetIntValue(0);
+
+					msg = string_format("[OFF] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+					INFO_LOG(msg);
+				}
+			}
+			else 
 			{
 				debounce_cnt = 0;
-
-				ptrLineSource->SetIntValue(0);
-
-				msg = string_format("[ON] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
-				INFO_LOG(msg);
 			}
 		}
-		else
+		else			// led off
 		{
-			debounce_cnt = 0;
+			debounce_cnt++;
+
+			// check off -> on
+			if(st_cam.expCur > st_cam.expMax)
+			{
+				if(debounce_cnt > debounce_limit)
+				{
+					debounce_cnt = 0;
+
+					ptrLineSource->SetIntValue(0);
+
+					msg = string_format("[ON] current ExposureTime value = %f[us], current gain value = %f[dB]", exposureTime->GetValue(), ptrGain->GetValue());
+					INFO_LOG(msg);
+				}
+			}
+			else
+			{
+				debounce_cnt = 0;
+			}
 		}
 	}
 
@@ -400,8 +449,13 @@ int CameraGrab::RunGrabbing()
 		CFloatPtr ptrGainLowerLimit = nodeMap.GetNode("AutoGainLowerLimit");
 		CFloatPtr ptrGainUpperLimit = nodeMap.GetNode("AutoGainUpperLimit");
 
+#if false	
 		ptrAutoXExposureTimeUpperLimit->SetValue(6800);	// us
 		ptrGainUpperLimit->SetValue(8.999);							// 8.999dB
+#else	// add. by ariari : 2022.05.17		
+		ptrAutoXExposureTimeUpperLimit->SetValue(fExposureValueMax);	// us
+		ptrGainUpperLimit->SetValue(fGainValueHigh);							// 8.999dB
+#endif
 
 		st_cam.capCount = 0;
 		st_cam.tarClk 	= ptrThroughputLimit->GetValue();
@@ -502,6 +556,7 @@ int CameraGrab::RunGrabbing()
 					}
 					//////////////////////////////////////////////////////////////////////////////////////////////
 #if true
+//#if false 	// 2022.03.18(test)
 					if (bSaveEnable) 
 					{
 						ostringstream filename_tmp;			// 임시 저장파일
@@ -525,7 +580,7 @@ int CameraGrab::RunGrabbing()
 							return -1;
 						}
 					}
-#else	// for test
+#else	// for test 
 					if (bSaveEnable) 
 					{
 						ostringstream filename;
@@ -543,8 +598,8 @@ int CameraGrab::RunGrabbing()
 							msg = "Error: " + (string)e.what();
 							cout << msg << endl;
 
-							ERR_LOG(msg);
-							return -1;
+							//ERR_LOG(msg);
+							//return -1;	// rem. by ariari : 2022.03.18
 						}
 					}
 #endif

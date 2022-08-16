@@ -63,6 +63,34 @@ time_t getTimemsec()
     return msecs_time;
 }
 
+// add. by ariari : 2022.02.22 - begin
+void * thread_socket_ctrl(void* args)
+{
+  //return nullptr; // 협의 후 적용. 적용할 경우 해당 라인 삭제
+
+  CommSocket* comm = (CommSocket*)args;
+  string log;
+
+  while(bIsRunningSocketMan)
+  {
+    if( comm->RecvDummy() <= 0)
+    {
+      bIsRunningSocketMan = false;
+      cout << "closed socket, exit..." << endl;
+    }
+    else 
+    {
+      usleep(10000);
+    }
+  }
+
+  log = "EXIT Thread(thread_socket_ctrl)";
+  INFO_LOG(log);
+
+  return nullptr;
+}
+// add. by ariari : 2022.02.22 - end
+
 void* thread_socket_man(void* args)
 {
   CommSocket* comm = (CommSocket*)args;
@@ -404,11 +432,17 @@ int main(int argc, char** argv)
   bIsRunningSocketRecv  = false;
   bIsRunningUsage       = false;
   pthread_mutex_init(&mutex_socket, NULL);     // init mutex
-  pthread_t thread[1];
+  //pthread_t thread[1];
+  // add. by ariari : 2022.02.22 for checking server down(disconnected)
+  pthread_t thread[2];
   pthread_create(&thread[0], NULL, thread_socket_man, comm);
+  // add. by ariari : 2022.02.22 for checking server down(disconnected)
+  pthread_create(&thread[1], NULL, thread_socket_ctrl, comm);
 
   // thread join
-  for(int i = 0; i < 1; i++) {
+  //for(int i = 0; i < 1; i++) {
+  // add. by ariari : 2022.02.22 for checking server down(disconnected)
+  for(int i = 0; i < 2; i++) {
         pthread_join(thread[i], NULL);
     }
 #else

@@ -76,6 +76,10 @@ public:
 	int			SetFrameRate(float frameRate);
 	float		GetFrameRate() { return fFrameRate; }
 
+	// add. by ariari : 2022.05.18
+	// 이미지 프로세스
+	int 	SetImageProcess(bool bImgProcEn, bool bGammaEn, bool bSharpEn, int nSharpAuto, float fGamma, int nSharp);
+
 	// GPIO
 	int 	SetGpioUserMode();
 	int 	SetGpioStrobeMode();
@@ -86,6 +90,9 @@ public:
 	int 	SetUserOutputSelector();
 	int		SetUserOutputValue(bool value);
 	int 	Set3_3Voltage(bool value);
+
+	// Gamma
+	int 	SetImageProcess();
 
 private:
 

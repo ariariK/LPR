@@ -1,0 +1,44 @@
+#ifndef LPR_DEMO_UTILS_H
+#define LPR_DEMO_UTILS_H
+
+#include "opencv2/opencv.hpp"
+#include <vector>
+#include <string>
+#include <stdint.h>
+
+#define LOG(severity) (std::cerr << (#severity) << ": ")
+
+#define LPR_CHECK(x)                                            \
+  if (!(x)) {                                                   \
+    fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);    \
+    exit(1);                                                    \
+  }
+
+namespace krlpr{
+namespace krlprutils {
+
+class TargetBox
+{
+public:
+    int x1;   // upper left point in frame
+    int y1;
+    int x2;   // low right point in frame
+    int y2;
+
+    cv::Mat lpr_src;          // lp img src
+    std::string lpr_string;   // lp string
+    int cate;
+    float score;
+
+    float getWidth() { return (x2 - x1); };
+    float getHeight() { return (y2 - y1); };
+    float area() { return getWidth() * getHeight(); };
+};
+
+std::string CTCGready(uint8_t *data, int x=85, int y=48);
+bool LicenseMatch(std::string license);
+
+}   //namespace krlprutils
+}   //namespace krlpr
+
+#endif

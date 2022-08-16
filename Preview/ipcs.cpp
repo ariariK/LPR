@@ -145,6 +145,15 @@ int Ipcs::MessageQueueCreate()
       msq_lpdr.msg_type = 1;
       created = true;
       break;
+
+#ifdef EN_LIST_DISP
+    // add. by ariari : 2022.05.20 
+    case KEY_NUM_MQ_LPDR_INFO:
+      msq_lpdr_result.msg_type = 1;
+      created = true;
+      break;
+#endif
+
   }
 
   // Get Message Queue ID
@@ -169,8 +178,13 @@ int Ipcs::MessageQueueInit()
   {
       msg = string_format("msgget failed[%d]", key_num);
       ERR_LOG(msg);
+
+      //fprintf(stderr, "MessageQueueInit() : msgget(%d) error\n", key_num);
+
       return -1;
   }
+
+  //fprintf(stderr, "OKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK MessageQueueInit() : msgget(%d) OK\n", key_num);
 
   return 1;
 }
@@ -227,6 +241,26 @@ int Ipcs::MessageQueueRead(char* data, int flag)
         }
       }
       break;
+
+#ifdef EN_LIST_DISP
+    // add. by ariari : 2022.05.20 
+    case KEY_NUM_MQ_LPDR_INFO:
+      {
+        //if (msgrcv(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0, 0) == -1)              // blocking 
+        //if (msgrcv(msqid, (struct message_lpdr*)data, sizeof(struct lpdr_data), 0, IPC_NOWAIT) == -1)     // non-blocking
+        if (msgrcv(msqid, (struct lpdr_result*)data, sizeof(struct message_lpdr_multi), 0, flag) == -1)        // non-blocking
+        {
+          if (errno != ENOMSG)
+          {
+            msg = string_format("msgrcv failed[%d] : %d", key_num, errno);
+            ERR_LOG(msg);
+            return -1;
+          }
+          return 1;
+        }
+      }
+      break;
+#endif      
   }
 
   return 1;
@@ -255,6 +289,19 @@ int Ipcs::MessageQueueWrite(char* data)
         return -1;
       }
       break;
+
+#ifdef EN_LIST_DISP
+    // add. by ariari : 2022.05.20 
+    case KEY_NUM_MQ_LPDR_INFO:
+      if (msgsnd(msqid, (struct lpdr_result*)data, sizeof(struct message_lpdr_multi), 0)==-1)						// blocking
+      {
+        msg = string_format("msgsnd failed[%d]", key_num);
+        ERR_LOG(msg);
+
+        return -1;
+      }
+      break;
+#endif      
   }
 
   return 1;

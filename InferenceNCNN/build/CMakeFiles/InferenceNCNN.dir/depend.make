@@ -819,6 +819,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/byteswap.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/confname.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/cpu-set.h
+CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/dirent.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/endian.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/environments.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/floatn-common.h
@@ -834,6 +835,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/libc-header-start.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/libm-simd-decl-stubs.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/local_lim.h
+CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/locale.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/long-double.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/math-finite.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/math-vector.h
@@ -908,6 +910,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/wordsize.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/bits/xopen_lim.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/ctype.h
+CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/dirent.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/endian.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/features.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/gnu/stubs-lp64.h
@@ -919,6 +922,7 @@ CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/linux/stddef.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/linux/sysinfo.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/linux/types.h
+CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/locale.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/math.h
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/opencv2/calib3d.hpp
 CMakeFiles/InferenceNCNN.dir/src/main.cpp.o: /opt/rk3399/rk3399_linux_release_v2.5.1_20210301/buildroot/output/rockchip_rk3399_lpr/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/opencv2/calib3d/calib3d_c.h

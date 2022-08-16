@@ -1,0 +1,89 @@
+#include "inference_ncnn/utils.h"
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <string>
+#include <regex>
+#include <cmath>
+#include <cassert>
+
+
+
+
+namespace krlpr{
+namespace krlprutils {
+
+    std::map<int, std::string > hangul_dict = {
+        { 0, "0" },{ 1, "1" },{ 2, "2" },{ 3, "3" },{ 4, "4" },{ 5, "5" },
+        { 6, "6" },{ 7, "7" },{ 8, "8" },{ 9, "9" },
+        { 10, "가" },{ 11, "나" },{ 12, "다" },{ 13, "라" },{ 14, "마" },
+        { 15, "거" },{ 16, "너" },{ 17, "더" },{ 18, "러" },{ 19, "머" },
+        { 20, "버" },{ 21, "서" },{ 22, "어" },{ 23, "저" },{ 24, "고" },
+        { 25, "노" },{ 26, "도" },{ 27, "로" },{ 28, "모" },{ 29, "보" },
+        { 30, "소" },{ 31, "오" },{ 32, "조" },{ 33, "구" },{ 34, "누" },
+        { 35, "두" },{ 36, "루" },{ 37, "무" },{ 38, "부" },{ 39, "수" },
+        { 40, "우" },{ 41, "주" },{ 42, "하" },{ 43, "허" },{ 44, "호" },
+        { 45, "바" },{ 46, "사" },{ 47, "아" },{ 48, "자" },{ 49, "배" },
+        { 50, "서울" },{ 51, "부산" },{ 52, "대구" },{ 53, "인천" },{ 54, "광주" },
+        { 55, "대전" },{ 56, "울산" },{ 57, "세종" },{ 58, "경기" },{ 59, "강원" },
+        { 60, "충북" },{ 61, "충남" },{ 62, "전북" },{ 63, "전남" },{ 64, "경북" },
+        { 65, "경남" },{ 66, "제주" },
+	// add. @ ver20211115
+        { 67, "서울" },{ 68, "부산" },{ 69, "대구" },{ 70, "인천" },{ 71, "광주" },
+        { 72, "대전" },{ 73, "울산" },{ 74, "세종" },{ 75, "경기" },{ 76, "강원" },
+        { 77, "충북" },{ 78, "충남" },{ 79, "전북" },{ 80, "전남" },{ 81, "경북" },
+        { 82, "경남" },{ 83, "제주" },
+    };
+
+template <typename T>
+size_t ArgMax(T *start, size_t size) {
+  size_t max_index = 0;
+
+  for(auto i = 0; i < size; i++) {
+    if(start[i] > start[max_index]) {
+      max_index = i;
+    }
+  }
+
+  return max_index;
+}
+
+std::string CTCGready(uint8_t *data, int x, int y)
+{
+    uint8_t *p = data;
+    
+    std::string res;
+    if(p == nullptr) {
+        return res;
+    }
+    int arg_max[y] = {0};
+    for(int i = 0; i < y; i++) {
+        arg_max[i] = ArgMax<uint8_t>(p, x);
+        p += x;
+        if(i > 0) {
+            if((arg_max[i] != arg_max[i-1]) && (arg_max[i-1] != x - 1)) {
+                res += hangul_dict[arg_max[i-1]];
+            }
+        }
+    }
+
+    return res;
+}
+
+bool LicenseMatch(std::string license)
+{
+  /* not work */
+  // std::locale old;
+  // std::locale::global(std::locale("en_US.UTF-8"));
+
+  // std::regex pattern("^(\\w\\w\\d{2}|\\d{2,3})\\D\\d{4}$", std::regex_constants::extended);
+  // bool result = std::regex_match(license, pattern);
+
+  // std::locale::global(old);
+
+  // return result;
+  return std::regex_match(license, std::regex("^(\\W{3}\\W{3}\\d{2}|\\d{2,3})\\W{3}\\d{4}$"));
+}
+
+}   //namespace krlprutils
+}   //namespace krlpr

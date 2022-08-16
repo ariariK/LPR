@@ -91,6 +91,9 @@ public:
     int y;              // rect[1]    
     int endX;           // rect[2]
     int endY;           // rect[3]
+
+    // score([0,100]) : add. by ariari : 2022.05.20
+    int score;          // score [0,1]->[0,100]
   };
   struct message_lpdr{
       long msg_type;

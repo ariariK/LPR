@@ -16,6 +16,13 @@
 
 using namespace std;
 
+// add. by ariar : 2022.07.18 - begin
+#define FD_LED_POWER	"/sys/class/gpio/gpio91/value"
+#define FD_LED_SYSTEM	"/sys/class/gpio/gpio157/value"
+#define FD_LED_CAMERA	"/sys/class/gpio/gpio158/value"
+#define FD_LED_SWITCH	"/sys/class/gpio/gpio52/value"	// IR STATUS(Enable output)
+// add. by ariar : 2022.07.18 - end
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -29,6 +36,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Set Title
     this->setWindowTitle("LPR - AI Edge Device");
+
+    // Init
+    stResult = {0,};
+    stResult.ST_Eth0 = 0;
+    stResult.ST_Eth1 = 0;
+    stResult.ST_USB_F2_0 = 0;
+    stResult.ST_USB_F3_0 = 0;
 
     // QProgressBar
     value = 0;
@@ -66,11 +80,23 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_usb_r3->setText("ready...");
     ui->label_usb_r3_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
     ui->label_usb_r3_conn->setText("ready...");
-    //ui->label_usb_r3_conn->hide();
+    ui->label_4->hide();                // add. by ariari : 2022.07.18
+    ui->label_usb_r3->hide();           // add. by ariari : 2022.07.18
+    ui->label_usb_r3_conn->hide();      // add. by ariari : 2022.07.18
 
     // MAC Address
-    ui->label_mac->setStyleSheet("QLabel { background-color : gray; color : black; }");
+    ui->label_SW->setStyleSheet("QLabel { background-color : gray; color : black; }");
     ui->label_mac->setText("ready...");
+
+    // add. by ariar : 2022.07.18 - begin
+    ui->label_SW->setStyleSheet("QLabel { background-color : gray; color : black; }");
+    ui->label_CAM->setStyleSheet("QLabel { background-color : gray; color : black; }");
+    ui->label_SYS->setStyleSheet("QLabel { background-color : gray; color : black; }");
+    ui->label_PWR->setStyleSheet("QLabel { background-color : gray; color : black; }");
+
+    ui->label_13->setStyleSheet("QLabel { background-color : red; color : black; }");
+    ui->label_13->setText("NG");
+    // add. by ariar : 2022.07.18 - end
 
     // IPC
     initPIPE();
@@ -105,9 +131,16 @@ MainWindow::MainWindow(QWidget *parent)
     thDevUsb2->start();
     connect(thDevUsb2, SIGNAL(Send()), this, SLOT(updateUsb2()));
 
+    // add. by ariar : 2022.07.18 - begin
+    thDevGpio = new ThreadDevGpio(this);
+    thDevGpio->start();
+    connect(thDevGpio, SIGNAL(Send()), this, SLOT(updateGPIOs()));
+    // add. by ariar : 2022.07.18 - end
+
 #ifdef WIN32
 #else
-    QString version("Ver. Unknown");
+    //QString version("Ver. Unknown");
+    stResult.fw_version = "Ver. Unknown";
     QString ver_file("/etc/.version");
     if (QFile::exists(ver_file) == true) 
     {
@@ -124,8 +157,8 @@ MainWindow::MainWindow(QWidget *parent)
             // and data types (including QString) on the right
             
             QTextStream out(&file);
-            version = "Ver. " + out.readAll();
-            qDebug() << version;	
+            stResult.fw_version = "Ver. " + out.readAll();
+            qDebug() << stResult.fw_version;	
             file.flush();
             file.close();
         }
@@ -133,7 +166,7 @@ MainWindow::MainWindow(QWidget *parent)
     else
     {
     }
-    ui->label_version->setText(version);
+    ui->label_version->setText(stResult.fw_version);
 #endif
 }
 
@@ -145,6 +178,7 @@ MainWindow::~MainWindow()
     delete thDevUsb0;
     delete thDevUsb1;
     delete thDevUsb2;
+    delete thDevGpio;
 
     closePIPE();
 
@@ -180,6 +214,42 @@ void MainWindow::updateProgressBar()
     INFO_LOG(strElapsedTime.toStdString());
 #endif
 
+    // 검사결과 저장(/oem/report_sysmon.txt)
+    QFile result("/oem/tmp_report.txt");
+    //result.open(QFile::WriteOnly|QFile::Append|QFile::Text)); // 쓰기 전용, 텍스트, 이어쓰기
+    result.open(QFile::WriteOnly|QFile::Text);// 쓰기 전용, 텍스트
+   
+    QTextStream SaveFile(&result);
+    SaveFile << "################ RESULT ################" << endl;
+    SaveFile << "F/W VERSION "      <<  "\t" << ": " << stResult.fw_version << endl;
+    SaveFile << "ETH0  "            <<  "\t\t" << ": DD = "<< stResult.DD_Eth0 << ", ST = " << stResult.ST_Eth0 << endl; 
+    SaveFile << "ETH1  "            <<  "\t\t" << ": DD = "<< stResult.DD_Eth1 << ", ST = " << stResult.ST_Eth1 << endl; 
+    SaveFile << "USB_20  "          <<  "\t" << ": DD = "<< stResult.DD_USB_F2_0 << ", ST = " << stResult.ST_USB_F2_0 << endl; 
+    SaveFile << "USB_30  "          <<  "\t" << ": DD = "<< stResult.DD_USB_F3_0 << ", ST = " << stResult.ST_USB_F3_0 << endl; 
+    SaveFile << "LED POWER  "       <<  "\t" << ": " << stResult.LED_PWR << endl; 
+    SaveFile << "LED SYSTEM  "      <<  "\t" << ": " << stResult.LED_SYS << endl; 
+    SaveFile << "LED CAMERA  "      <<  "\t" << ": " << stResult.LED_CAM << endl; 
+    SaveFile << "LED IR/SWITCH  "   <<  "\t" << ": " << stResult.LED_IR << endl << endl; 
+    if(stResult.ST_Eth0 && stResult.ST_Eth1 && stResult.ST_USB_F2_0 && stResult.ST_USB_F3_0 && stResult.LED_PWR && stResult.LED_SYS && stResult.LED_CAM && stResult.LED_IR)
+    {
+        SaveFile << "CHECK RESULT "     <<  "\t" << ": " << "OK" << endl; 
+
+        ui->label_13->setStyleSheet("QLabel { background-color : green; color : black; }");
+        ui->label_13->setText("OK");
+    }
+    else
+    {
+        SaveFile << "CHECK RESULT "     <<  "\t" << ": " << "NG" << endl; 
+        ui->label_13->setStyleSheet("QLabel { background-color : red; color : black; }");
+        ui->label_13->setText("NG");
+    }
+
+    SaveFile << "########################################" << endl;
+
+    result.close(); // 파일닫기 
+
+    
+    rename("/oem/tmp_report.txt", "/oem/report_sysmon.txt");
 }
 
 void MainWindow::updateMacAddress()
@@ -191,7 +261,7 @@ void MainWindow::updateMacAddress()
     pMac.waitForFinished();
     QString output(pMac.readAllStandardOutput());
     //qDebug() << output;
-    cout << output.toStdString() << endl;
+    //cout << output.toStdString() << endl;
 
     // 이더넷 디바이스 체크
     if (output.isEmpty())   // not found
@@ -250,17 +320,21 @@ void MainWindow::updateEth0()
     pEth0.waitForFinished();
     QString output(pEth0.readAllStandardOutput());
     //qDebug() << output;
-    cout << output.toStdString() << endl;
+    //cout << output.toStdString() << endl;
 
     // 이더넷 디바이스 체크
     if (output.isEmpty() || output.contains("Device not found", Qt::CaseInsensitive))   // not found
     {
         ui->label_eth0->setStyleSheet("QLabel { background-color : red; color : white; }");
         ui->label_eth0->setText("not found");
+
+        stResult.DD_Eth0 = 0;
     }
     // 상태 정보 전송
     else
     {
+        stResult.DD_Eth0 = 1;
+
         ui->label_eth0->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_eth0->setText("OK");
 
@@ -270,15 +344,19 @@ void MainWindow::updateEth0()
         pEth0.closeWriteChannel();
         pEth0.waitForFinished();
         QString output(pEth0.readAllStandardOutput());
-        cout << output.toStdString() << endl;
+        //cout << output.toStdString() << endl;
         if (output.isEmpty() || output.contains("up", Qt::CaseInsensitive))     // connected
         {
+            stResult.ST_Eth0 = 1;
+
             //ui->label_eth0_conn->show();
             ui->label_eth0_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
             ui->label_eth0_conn->setText("Connected");
         }
         else                                                                    // not connected
         {
+            //stResult.ST_Eth0 = 0;
+
             //ui->label_eth0_conn->hide();
             ui->label_eth0_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
             ui->label_eth0_conn->setText("ready...");
@@ -298,7 +376,7 @@ void MainWindow::updateEth1()
     pEth1.waitForFinished();
     QString output(pEth1.readAllStandardOutput());
     //qDebug() << output;
-    cout << output.toStdString() << endl;
+    //cout << output.toStdString() << endl;
 
     // 이더넷 디바이스 체크
     if (output.isEmpty() || output.contains("Device not found", Qt::CaseInsensitive))   // not found
@@ -306,12 +384,16 @@ void MainWindow::updateEth1()
         ui->label_eth1->setStyleSheet("QLabel { background-color : red; color : white; }");
         ui->label_eth1->setText("not found");
     	    
-	ui->label_eth1_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
-	ui->label_eth1_conn->setText("ready...");
+        ui->label_eth1_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
+        ui->label_eth1_conn->setText("ready...");
+
+        stResult.DD_Eth1 = 0;
     }
     // 상태 정보 전송
     else
     {
+        stResult.DD_Eth1 = 1;
+
         ui->label_eth1->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_eth1->setText("OK");
 
@@ -320,15 +402,19 @@ void MainWindow::updateEth1()
     	pEth1.closeWriteChannel();
     	pEth1.waitForFinished();
     	QString output(pEth1.readAllStandardOutput());
-    	cout << output.toStdString() << endl;
+    	//cout << output.toStdString() << endl;
     	if (output.isEmpty() || output.contains("up", Qt::CaseInsensitive))     // connected
     	{
+            stResult.ST_Eth1 = 1;
+
     	    //ui->label_eth1_conn->show();
     	    ui->label_eth1_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
     	    ui->label_eth1_conn->setText("Connected");
     	}
     	else                                                                    // not connected
     	{
+            //stResult.ST_Eth1 = 0;
+
     	    //ui->label_eth1_conn->hide();
     	    ui->label_eth1_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
     	    ui->label_eth1_conn->setText("ready...");
@@ -339,7 +425,7 @@ void MainWindow::updateEth1()
     pEth1.close();
 }
 
-// Front 2.0 (Bus 0 and 1)
+// Front 2.0 (Bus 1 and 2)
 void MainWindow::updateUsb0()
 {
     QProcess pUsb0;
@@ -350,7 +436,7 @@ void MainWindow::updateUsb0()
     pUsb0.waitForFinished();
     QString output(pUsb0.readAllStandardOutput());
     //qDebug() << output;
-    cout << output.toStdString() << endl;
+    //cout << output.toStdString() << endl;
 
     // parse
     string token;
@@ -383,9 +469,13 @@ void MainWindow::updateUsb0()
     {
         ui->label_usb_f2->setStyleSheet("QLabel { background-color : red; color : white; }");
         ui->label_usb_f2->setText("not found");
+
+        stResult.DD_USB_F2_0 = 0;
     }
     else if (tree_info_cnt == 2)
     {
+        stResult.DD_USB_F2_0 = 1;
+
         ui->label_usb_f2->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_usb_f2->setText("OK");
     }
@@ -394,29 +484,38 @@ void MainWindow::updateUsb0()
     // USB 연결정보
     if (dev_info_cnt == 1)
     {
+        stResult.ST_USB_F2_0 = 1;
+
         //ui->label_usb_f2_conn->show();
         ui->label_usb_f2_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_usb_f2_conn->setText("Connected");
     }
     else
     {
+        //stResult.ST_USB_F2_0 = 0;
+
         //ui->label_usb_f2_conn->hide();
         ui->label_usb_f2_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
         ui->label_usb_f2_conn->setText("ready...");
     }
+
+    // 종료
+    pUsb0.close();
 }
 
-// Front 3.0 (Bus 7 and 8)
+// Front 3.0 (Bus 7 and 8)              : rem. by ariari : 2022.07.18
+// Front 3.0 (Bus 5 and 6) (eMMC)       : add. by ariari : 2022.07.18
 void MainWindow::updateUsb1()
 {
     QProcess pUsb1;
     pUsb1.start("sh");
-    pUsb1.write("lsusb | grep \"Bus 007\\\|Bus 008\"");
+    pUsb1.write("lsusb | grep \"Bus 005\\\|Bus 006\"");
+    //pUsb1.write("lsusb | grep \"Bus 007\\\|Bus 008\""); // add. by ariari : 2022.07.18 => assigned to USB to Ethernet
     pUsb1.closeWriteChannel();
     pUsb1.waitForFinished();
     QString output(pUsb1.readAllStandardOutput());
     //qDebug() << output;
-    cout << output.toStdString() << endl;
+    //cout << output.toStdString() << endl;
 
     // parse
     string token;
@@ -447,11 +546,15 @@ void MainWindow::updateUsb1()
     // USB 디바이스 드라이버 정보
     if (tree_info_cnt < 2)
     {
+        stResult.DD_USB_F3_0 = 0;
+
         ui->label_usb_f3->setStyleSheet("QLabel { background-color : red; color : white; }");
         ui->label_usb_f3->setText("not found");
     }
     else if (tree_info_cnt == 2)
     {
+        stResult.DD_USB_F3_0 = 1;
+
         ui->label_usb_f3->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_usb_f3->setText("OK");
     }
@@ -460,29 +563,38 @@ void MainWindow::updateUsb1()
     // USB 연결정보
     if (dev_info_cnt == 1)
     {
+        stResult.ST_USB_F3_0 = 1;
+
         //ui->label_usb_f3_conn->show();
         ui->label_usb_f3_conn->setStyleSheet("QLabel { background-color : green; color : white; }");
         ui->label_usb_f3_conn->setText("Connected");
     }
     else
     {
+        //stResult.ST_USB_F3_0 = 0;
+
         //ui->label_usb_f3_conn->hide();
         ui->label_usb_f3_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
         ui->label_usb_f3_conn->setText("ready...");
     }
+
+    // 종료
+    pUsb1.close();
 }
 
-// Rear 3.0 (Bus 5 and 6)
+// Rear 3.0 (Bus 5 and 6)                       : rem. by ariari : 2022.07.18
+// Rear 3.0 (Bus 7 and 8) (USB to Ethernet)     : add. by ariari : 2022.07.18
 void MainWindow::updateUsb2()
 {
     QProcess pUsb2;
     pUsb2.start("sh");
-    pUsb2.write("lsusb | grep \"Bus 005\\\|Bus 006\"");
+    //pUsb2.write("lsusb | grep \"Bus 005\\\|Bus 006\"");
+    pUsb2.write("lsusb | grep \"Bus 007\\\|Bus 008\""); // add. by ariari : 2022.07.18 => assigned to USB to Ethernet
     pUsb2.closeWriteChannel();
     pUsb2.waitForFinished();
     QString output(pUsb2.readAllStandardOutput());
     //qDebug() << output;
-    cout << output.toStdString() << endl;
+    //cout << output.toStdString() << endl;
 
     // parse
     string token;
@@ -536,6 +648,96 @@ void MainWindow::updateUsb2()
         ui->label_usb_r3_conn->setStyleSheet("QLabel { background-color : gray; color : white; }");
         ui->label_usb_r3_conn->setText("ready...");
     }
+
+    // 종료
+    pUsb2.close();
 }
 
+void MainWindow::updateGPIOs()
+{
+    QProcess pGpio;
 
+    // FD_LED_SYSTEM
+    pGpio.start("sh");
+    QString dev_sys = QString("cat %1").arg(FD_LED_SYSTEM);
+    pGpio.write(dev_sys.toStdString().c_str());
+    pGpio.closeWriteChannel();
+    pGpio.waitForFinished();
+    QString output_sys(pGpio.readAllStandardOutput());
+    //pGpio.close();
+
+    // FD_LED_CAMERA
+    pGpio.start("sh");
+    QString dev_cam = QString("cat %1").arg(FD_LED_CAMERA);
+    pGpio.write(dev_cam.toStdString().c_str());
+    pGpio.closeWriteChannel();
+    pGpio.waitForFinished();
+    QString output_cam(pGpio.readAllStandardOutput());
+    //pGpio.close();
+
+    // FD_LED_SWITCH
+    pGpio.start("sh");
+    QString dev_ir = QString("cat %1").arg(FD_LED_SWITCH);
+    pGpio.write(dev_ir.toStdString().c_str());
+    pGpio.closeWriteChannel();
+    pGpio.waitForFinished();
+    QString output_ir(pGpio.readAllStandardOutput());
+    pGpio.close();
+
+    int led_pwr = 1;
+    int led_sys = output_sys.toInt();
+    int led_cam = output_cam.toInt();
+    int led_ir = output_ir.toInt();
+#if 0
+    stResult.LED_PWR    = 1;
+    stResult.LED_SYS    = output_sys.toInt();
+    stResult.LED_CAM    = output_cam.toInt();
+    stResult.LED_IR     = output_ir.toInt();
+#else
+    stResult.LED_PWR    = led_pwr;
+    stResult.LED_SYS    = stResult.LED_SYS == 0 ? led_sys : stResult.LED_SYS;
+    stResult.LED_CAM    = stResult.LED_CAM == 0 ? led_cam : stResult.LED_CAM;
+    stResult.LED_IR     = stResult.LED_IR ==0 ? led_ir : stResult.LED_IR;
+#endif
+
+    if(led_pwr == 1)
+    {
+        ui->label_PWR->setStyleSheet("QLabel { background-color : green; color : black; }");
+    }
+    else
+    {
+        ui->label_PWR->setStyleSheet("QLabel { background-color : gray; color : black; }");
+    }
+    if(led_sys == 1)
+    {
+        ui->label_SYS->setStyleSheet("QLabel { background-color : yellow; color : black; }");    
+    }
+    else
+    {
+        ui->label_SYS->setStyleSheet("QLabel { background-color : gray; color : black; }");    
+    }
+    if(led_cam == 1)
+    {
+        ui->label_CAM->setStyleSheet("QLabel { background-color : red; color : black; }");    
+    }
+    else
+    {
+        ui->label_CAM->setStyleSheet("QLabel { background-color : gray; color : black; }");    
+    }
+    if(led_ir == 1)
+    {
+        ui->label_SW->setStyleSheet("QLabel { background-color : green; color : black; }");
+    }
+    else
+    {
+        ui->label_SW->setStyleSheet("QLabel { background-color : gray; color : black; }");
+    }
+
+
+    //cout << "LEDs : " << stResult.LED_IR << ", " << stResult.LED_CAM << ", " << stResult.LED_SYS << ", " << stResult.LED_PWR << endl;
+  
+    //QString strHealthReport;
+    //strHealthReport.sprintf("LEDs : %d:%d:%d:%d", stResult.LED_IR, stResult.LED_CAM, stResult.LED_SYS, stResult.LED_PWR);
+    //INFO_LOG(strHealthReport.toStdString());
+
+}

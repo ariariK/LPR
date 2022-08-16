@@ -208,6 +208,19 @@ int CommSocket::SendHeader(char code)
   return writelen;
 }
 
+// add. by ariar : 2022.02.22 - begin
+int CommSocket::RecvDummy()
+{
+  char buffer[4]; 
+  int recv_len;
+
+  cout << "CommSocket::RecvDummy()" << endl;
+  recv_len = recv(client_sockfd, buffer, 4, 0);
+
+  return recv_len;
+}
+// add. by ariar : 2022.02.22 - end
+
 int CommSocket::SendPacketPatrolCarInfo(time_t timestamp, string carNumber)
 {
   // clear
@@ -271,7 +284,6 @@ int CommSocket::SendPacketPatrolCarInfoV2(time_t timestamp, string carNumber)
     writelen += send(client_sockfd, (char *)&patrolCarInfo + writelen, sizeof(patrolCarInfo) - writelen, 0);
     //printf("send to server : %d bytes\n", writelen);
   }
-
   //printf("SendPacketPatrolCarInfo : %d\n", writelen);
   msg = string_format("SendPacketPatrolCarInfo : %d", writelen);
   DEBUG_LOG(msg);

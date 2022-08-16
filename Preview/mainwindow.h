@@ -35,10 +35,46 @@ public:
 
     QFont font_lpr;
     QFont font_dbg;
+#ifdef EN_LIST_DISP    
+    QFont lpd_box;  // add. by ariari : 2022.05.20
+#endif
+
     QRectF rect_city;
     QRectF rect_left;
     QRectF rect_center;
     QRectF rect_right;
+
+#ifdef EN_LIST_DISP    
+    struct lpdr_info{
+        //long detect_num;
+
+        char status[32];    // 수배종류
+        char carNo[32];     // 차량정보
+
+        // RECT
+        int x;              // rect[0]
+        int y;              // rect[1]    
+        int endX;           // rect[2]
+        int endY;           // rect[3]
+
+        // score([0,100]) : add. by ariari : 2022.05.20
+        int score;          // score [0,1]->[0,100]
+    };
+    string strBKNoFront[10];
+    string strBKNoBack[10];
+    string strBKHangulFileNameF[10];
+    string strBKHangulFileNameB[10]; 
+    struct lpdr_info info_bk[10];
+#endif
+
+    char carNo[32];
+    string strNoFront;
+    string strNoBack;
+    string strHangulF;
+    string strHangulB;
+    string strHangulFileNameF;
+    string strHangulFileNameB;
+
 
 private slots:
     void Update();
@@ -57,19 +93,22 @@ private:
     int screenWidth;
     int screenHeight;
 
-    char carNo[32];
-    string strNoFront;
-    string strNoBack;
-    string strHangulF;
-    string strHangulB;
-    string strHangulFileNameF;
-    string strHangulFileNameB;
+    // add. by ariari : 2022.05.16 - begin
+    int draw_en;    // add. by ariari : 2022.07.19
+    int roi_sx;
+    int roi_sy;
+    int roi_w;
+    int roi_h;
+    // add. by ariari : 2022.05.16 - end
 
+    
     void GetParameters();
     void CheckScreenGeometry();
     void GetCarNoInfo(std::string strCarNo);
     QString GetCPUTemp();
     QString GetRunningTime();
+
+    
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////	
 	// IPC
@@ -79,6 +118,9 @@ private:
     Ipcs	*Sm_Lpr;
 	Ipcs	*Mq_Grab;
     Ipcs	*Sm_Cam;
+    // add. by ariari : 2022.05.20
+    Ipcs    *Mq_Lpdr_Info;
+    Ipcs	*Sm_Lpdr;
 
     struct grab_data{
 		int capWidth;
@@ -109,6 +151,26 @@ private:
 		float			gainMin;
 		float			gainCur;
 	};
+
+#ifdef EN_LIST_DISP
+    // add. by ariari : 2022.05.20 - begin
+    struct message_lpdr_info{
+        long msg_type;
+        struct lpdr_info data;
+    };
+    struct message_lpdr_info msq_lpdr_info;
+
+    struct message_lpdr_multi{
+        long detect_num;
+        struct lpdr_info data[10];
+    };
+    struct lpdr_result{
+        long msg_type;
+        struct message_lpdr_multi data;
+    };
+    struct lpdr_result msq_lpdr_result;
+    // add. by ariari : 2022.05.20 - end
+#endif    
 
     char buffer[MEM_SIZE_SM];
     struct grab_data st_grab;

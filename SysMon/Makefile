@@ -59,13 +59,15 @@ SOURCES       = main.cpp \
 		threaddeveth1.cpp \
 		threaddevusb0.cpp \
 		threaddevusb1.cpp \
-		threaddevusb2.cpp moc_mainwindow.cpp \
+		threaddevusb2.cpp \
+		threaddevgpio.cpp moc_mainwindow.cpp \
 		moc_thread.cpp \
 		moc_threaddeveth0.cpp \
 		moc_threaddeveth1.cpp \
 		moc_threaddevusb0.cpp \
 		moc_threaddevusb1.cpp \
-		moc_threaddevusb2.cpp
+		moc_threaddevusb2.cpp \
+		moc_threaddevgpio.cpp
 OBJECTS       = main.o \
 		mainwindow.o \
 		thread.o \
@@ -74,13 +76,15 @@ OBJECTS       = main.o \
 		threaddevusb0.o \
 		threaddevusb1.o \
 		threaddevusb2.o \
+		threaddevgpio.o \
 		moc_mainwindow.o \
 		moc_thread.o \
 		moc_threaddeveth0.o \
 		moc_threaddeveth1.o \
 		moc_threaddevusb0.o \
 		moc_threaddevusb1.o \
-		moc_threaddevusb2.o
+		moc_threaddevusb2.o \
+		moc_threaddevgpio.o
 DIST          = /opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/spec_pre.prf \
 		/opt/firefly-qt-5.12.2-aarch64/host/mkspecs/common/unix.conf \
 		/opt/firefly-qt-5.12.2-aarch64/host/mkspecs/common/linux.conf \
@@ -246,14 +250,16 @@ DIST          = /opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/spec_pre.pr
 		threaddeveth1.h \
 		threaddevusb0.h \
 		threaddevusb1.h \
-		threaddevusb2.h main.cpp \
+		threaddevusb2.h \
+		threaddevgpio.h main.cpp \
 		mainwindow.cpp \
 		thread.cpp \
 		threaddeveth0.cpp \
 		threaddeveth1.cpp \
 		threaddevusb0.cpp \
 		threaddevusb1.cpp \
-		threaddevusb2.cpp
+		threaddevusb2.cpp \
+		threaddevgpio.cpp
 QMAKE_TARGET  = SysMon
 DESTDIR       = 
 TARGET        = SysMon
@@ -607,8 +613,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents mainwindow.h thread.h threaddeveth0.h threaddeveth1.h threaddevusb0.h threaddevusb1.h threaddevusb2.h $(DISTDIR)/
-	$(COPY_FILE) --parents main.cpp mainwindow.cpp thread.cpp threaddeveth0.cpp threaddeveth1.cpp threaddevusb0.cpp threaddevusb1.cpp threaddevusb2.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents mainwindow.h thread.h threaddeveth0.h threaddeveth1.h threaddevusb0.h threaddevusb1.h threaddevusb2.h threaddevgpio.h $(DISTDIR)/
+	$(COPY_FILE) --parents main.cpp mainwindow.cpp thread.cpp threaddeveth0.cpp threaddeveth1.cpp threaddevusb0.cpp threaddevusb1.cpp threaddevusb2.cpp threaddevgpio.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents mainwindow.ui $(DISTDIR)/
 
 
@@ -641,9 +647,9 @@ compiler_moc_predefs_clean:
 moc_predefs.h: /opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/data/dummy.cpp
 	/opt/firefly-qt-5.12.2-aarch64/host/bin/aarch64-buildroot-linux-gnu-g++ -pipe -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Os --sysroot=/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot -O2 -O3 -std=gnu++11 -Wall -W -dM -E -o moc_predefs.h /opt/firefly-qt-5.12.2-aarch64/host/mkspecs/features/data/dummy.cpp
 
-compiler_moc_header_make_all: moc_mainwindow.cpp moc_thread.cpp moc_threaddeveth0.cpp moc_threaddeveth1.cpp moc_threaddevusb0.cpp moc_threaddevusb1.cpp moc_threaddevusb2.cpp
+compiler_moc_header_make_all: moc_mainwindow.cpp moc_thread.cpp moc_threaddeveth0.cpp moc_threaddeveth1.cpp moc_threaddevusb0.cpp moc_threaddevusb1.cpp moc_threaddevusb2.cpp moc_threaddevgpio.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) moc_mainwindow.cpp moc_thread.cpp moc_threaddeveth0.cpp moc_threaddeveth1.cpp moc_threaddevusb0.cpp moc_threaddevusb1.cpp moc_threaddevusb2.cpp
+	-$(DEL_FILE) moc_mainwindow.cpp moc_thread.cpp moc_threaddeveth0.cpp moc_threaddeveth1.cpp moc_threaddevusb0.cpp moc_threaddevusb1.cpp moc_threaddevusb2.cpp moc_threaddevgpio.cpp
 moc_mainwindow.cpp: mainwindow.h \
 		thread.h \
 		threaddeveth0.h \
@@ -651,6 +657,7 @@ moc_mainwindow.cpp: mainwindow.h \
 		threaddevusb0.h \
 		threaddevusb1.h \
 		threaddevusb2.h \
+		threaddevgpio.h \
 		moc_predefs.h \
 		/opt/firefly-qt-5.12.2-aarch64/host/bin/moc
 	/opt/firefly-qt-5.12.2-aarch64/host/bin/moc $(DEFINES) --include /images/apps/LPR/SysMon/moc_predefs.h -I/opt/firefly-qt-5.12.2-aarch64/host/mkspecs/devices/linux-buildroot-g++ -I/images/apps/LPR/SysMon -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5 -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtWidgets -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtGui -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtCore -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0 -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0/aarch64-buildroot-linux-gnu -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0/backward -I/opt/firefly-qt-5.12.2-aarch64/host/lib/gcc/aarch64-buildroot-linux-gnu/6.5.0/include -I/opt/firefly-qt-5.12.2-aarch64/host/lib/gcc/aarch64-buildroot-linux-gnu/6.5.0/include-fixed -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include mainwindow.h -o moc_mainwindow.cpp
@@ -685,6 +692,11 @@ moc_threaddevusb2.cpp: threaddevusb2.h \
 		/opt/firefly-qt-5.12.2-aarch64/host/bin/moc
 	/opt/firefly-qt-5.12.2-aarch64/host/bin/moc $(DEFINES) --include /images/apps/LPR/SysMon/moc_predefs.h -I/opt/firefly-qt-5.12.2-aarch64/host/mkspecs/devices/linux-buildroot-g++ -I/images/apps/LPR/SysMon -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5 -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtWidgets -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtGui -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtCore -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0 -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0/aarch64-buildroot-linux-gnu -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0/backward -I/opt/firefly-qt-5.12.2-aarch64/host/lib/gcc/aarch64-buildroot-linux-gnu/6.5.0/include -I/opt/firefly-qt-5.12.2-aarch64/host/lib/gcc/aarch64-buildroot-linux-gnu/6.5.0/include-fixed -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include threaddevusb2.h -o moc_threaddevusb2.cpp
 
+moc_threaddevgpio.cpp: threaddevgpio.h \
+		moc_predefs.h \
+		/opt/firefly-qt-5.12.2-aarch64/host/bin/moc
+	/opt/firefly-qt-5.12.2-aarch64/host/bin/moc $(DEFINES) --include /images/apps/LPR/SysMon/moc_predefs.h -I/opt/firefly-qt-5.12.2-aarch64/host/mkspecs/devices/linux-buildroot-g++ -I/images/apps/LPR/SysMon -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5 -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtWidgets -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtGui -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtCore -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0 -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0/aarch64-buildroot-linux-gnu -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include/c++/6.5.0/backward -I/opt/firefly-qt-5.12.2-aarch64/host/lib/gcc/aarch64-buildroot-linux-gnu/6.5.0/include -I/opt/firefly-qt-5.12.2-aarch64/host/lib/gcc/aarch64-buildroot-linux-gnu/6.5.0/include-fixed -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/include -I/opt/firefly-qt-5.12.2-aarch64/host/aarch64-buildroot-linux-gnu/sysroot/usr/include threaddevgpio.h -o moc_threaddevgpio.cpp
+
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
 compiler_moc_source_make_all:
@@ -712,7 +724,8 @@ main.o: main.cpp mainwindow.h \
 		threaddeveth1.h \
 		threaddevusb0.h \
 		threaddevusb1.h \
-		threaddevusb2.h
+		threaddevusb2.h \
+		threaddevgpio.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o main.cpp
 
 mainwindow.o: mainwindow.cpp mainwindow.h \
@@ -722,6 +735,7 @@ mainwindow.o: mainwindow.cpp mainwindow.h \
 		threaddevusb0.h \
 		threaddevusb1.h \
 		threaddevusb2.h \
+		threaddevgpio.h \
 		ui_mainwindow.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o mainwindow.o mainwindow.cpp
 
@@ -743,6 +757,9 @@ threaddevusb1.o: threaddevusb1.cpp threaddevusb1.h
 threaddevusb2.o: threaddevusb2.cpp threaddevusb2.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o threaddevusb2.o threaddevusb2.cpp
 
+threaddevgpio.o: threaddevgpio.cpp threaddevgpio.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o threaddevgpio.o threaddevgpio.cpp
+
 moc_mainwindow.o: moc_mainwindow.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_mainwindow.o moc_mainwindow.cpp
 
@@ -763,6 +780,9 @@ moc_threaddevusb1.o: moc_threaddevusb1.cpp
 
 moc_threaddevusb2.o: moc_threaddevusb2.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_threaddevusb2.o moc_threaddevusb2.cpp
+
+moc_threaddevgpio.o: moc_threaddevgpio.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_threaddevgpio.o moc_threaddevgpio.cpp
 
 ####### Install
 

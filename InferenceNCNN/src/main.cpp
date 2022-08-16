@@ -21,6 +21,9 @@
 #include <pthread.h>
 #include <queue>
 #include <sys/time.h>
+#include <dirent.h> // add. by ariari : 2022.03.18
+#include <fstream>
+#include <locale.h>
 
 #define LOG_NAME	"[LPR]"
 
@@ -39,7 +42,9 @@ int is_running;                                                             // c
 
 sqlite3 *db;                                                                // sqlite db handler
 string  msg;
-int coolTime = 60;  // def: 60초
+int coolTime = 60;      // def: 60초
+int cont_det_num = 1;   // add. by ariari : 2022.05.31, 동일 번호 연속 검출 시 인정, 1:매번, 2:연속2회 이상 일경우
+//int cont_det_num = 2;   // add. by ariari : 2022.05.31, 동일 번호 연속 검출 시 인정, 1:매번, 2:연속2회 이상 일경우
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IPCs
@@ -68,12 +73,44 @@ struct lpdr_data{
     int y;              // rect[1]    
     int endX;           // rect[2]
     int endY;           // rect[3]
+
+    // score([0,100]) : add. by ariari : 2022.05.20
+    int score;          // score [0,1]->[0,100]
 };
 struct message_lpdr{
     long msg_type;
     struct lpdr_data data;
 };
 struct message_lpdr msq_lpdr;
+
+#ifdef EN_LIST_DISP
+// add. by ariari : 2022.05.20 - begin
+  struct lpdr_info{
+    char status[32];    // 수배종류
+    char carNo[32];     // 차량정보
+    
+    // RECT
+    int x;              // rect[0]
+    int y;              // rect[1]    
+    int endX;           // rect[2]
+    int endY;           // rect[3]
+
+    // score([0,100]) : add. by ariari : 2022.05.20
+    int score;          // score [0,1]->[0,100]
+  };
+  struct message_lpdr_multi{
+      long detect_num;
+      struct lpdr_info data[10];
+  };
+
+  struct lpdr_result{
+      long msg_type;
+      struct message_lpdr_multi data;
+  };
+  struct lpdr_result msq_lpdr_result;
+  // add. by ariari : 2022.05.20 - end
+#endif
+  
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //#define USE_Q_FOR_FILELIST
@@ -135,6 +172,10 @@ bool checkCoolTime(string carNo)
     static system_clock::time_point start;
     static system_clock::time_point end;
 
+#ifdef EN_DEMO   // mod. by ariari : 2022.05.16 - begin    
+    return false;
+#endif
+
     if(preNo.compare(carNo) == 0)   // same
     {
         end = system_clock::now();
@@ -154,6 +195,7 @@ bool checkCoolTime(string carNo)
 
 }
 
+// mod. by ariari : 2022.05.02
 bool isWanted(const string& str)
 {  
     bool bIsWanted = 0;
@@ -183,6 +225,12 @@ bool isWanted(const string& str)
         return false;
     } 
 
+#ifdef EN_DEMO
+    code_value = 5;
+    //bIsWanted = true;
+    bIsWanted = false;
+#endif    
+
     //return bIsWanted;
     return bIsWanted ? checkCoolTime(str) : false;
 }
@@ -201,8 +249,14 @@ static string convertWantedType(int code)
         case 3:
             strType="범죄";
             break;
+        case 4:
+            strType="피견인";
+            break;
         case 5:
             strType="기타";
+            break;
+        case 6:
+            strType="교통사고";
             break;
         case 7:
             strType="번호판분실";
@@ -233,16 +287,107 @@ int deleteFile(string fname)
     return 1;
 }
 
+//#define LPR_ANALYSIS_EN   // 알고리즘 테스트용
 void* thread_lpr(void* arg)
 {
     cv::Mat frame_gray;
     cv::Mat frame_bgr;
     std::vector<krlpr::krlprutils::TargetBox> boxes;
+    std::string strPrevCarNo;   // add. by ariari : 2022.04.04
 
     /* clock statistics running time */
     double mseconds_lpd, mseconds_lpr;
     clock_t start_lpd, end_lpd;
     clock_t start_lpr, end_lpr;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // add. by ariari : 2022.05.16 - begin
+    int roi_sx      = 0;
+    int roi_sy      = 0;
+    int roi_w       = 1920;
+    int roi_h       = 1080;
+    ifstream cFile;
+    string file_cfg = "/oem/config_lpr.txt";
+    cFile.open(file_cfg);
+	if (cFile.is_open())
+	{
+		string line;
+        while(getline(cFile, line)) {
+            line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+
+			if (line[0] == '#' || line.empty())
+			{
+				continue;
+			}
+
+			auto delimiterPos = line.find("=");
+			auto name = line.substr(0, delimiterPos);
+			auto value = line.substr(delimiterPos + 1);
+			
+			cout << name << " " << value << endl;
+            if (name.compare("roi_sx") == 0)
+			{
+				roi_sx = stoi(value);
+			}
+            else if (name.compare("roi_sy") == 0)
+            {
+                roi_sy = stoi(value);
+            }
+            else if (name.compare("roi_w") == 0)
+            {
+                roi_w = stoi(value);
+            }
+            else if (name.compare("roi_h") == 0)
+            {
+                roi_h = stoi(value);
+            }
+        }
+    }
+    cFile.close();
+    // add. by ariari : 2022.05.16 - end
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+#ifdef LPR_ANALYSIS_EN    // for test
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    int imgTCnt = 0;    // total count
+    int imgCPos = 0;    // current position
+    DIR *dir; struct dirent *diread;
+    vector<string> files;
+
+    if ((dir = opendir("/media/usb0/images/")) != nullptr) {
+        char *ext;
+        while ((diread = readdir(dir)) != nullptr) {
+            ext = strrchr(diread->d_name, '.');
+            if(strcmp(ext, ".jpg") == 0)
+            {
+                files.push_back(diread->d_name);
+            }
+        }
+        closedir (dir);
+    } else {
+        perror ("opendir");
+        is_running = false;
+        return nullptr;
+    }
+
+    //for (auto file : files) cout << file << endl;
+    //cout << endl;
+    imgTCnt = files.size();
+
+    // write file
+    string resultPath = "/media/usb0/result/result.txt";
+    ofstream resultFile(resultPath.data(), ios::app);
+    if ( resultFile.is_open()) {
+        cout << "created result file" << endl;
+    }
+    else {
+        cout << "not create result file" << endl;
+        is_running = false;
+        return nullptr;
+    }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+#endif
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     Ipcs *Sm_Grab = new Ipcs(KEY_NUM_SM, MEM_SIZE_SM);
@@ -259,6 +404,15 @@ void* thread_lpr(void* arg)
 
     Ipcs *Mq_Grab_Img = new Ipcs(KEY_NUM_MQ_GRAB_IMG, 0);
     Mq_Grab_Img->MessageQueueInit();
+
+    // add. by ariari : 2022.05.20
+#ifdef EN_DEMO    
+    Ipcs *Mq_Lpdr_Info = new Ipcs(KEY_NUM_MQ_LPDR_INFO, 0);
+    Mq_Lpdr_Info->MessageQueueCreate();
+
+    //Ipcs *Sm_Lpdr = new Ipcs(KEY_NUM_SM_LPDR, MEM_SIZE_SM_LPDR);
+    //Sm_Lpdr->SharedMemoryCreate();
+#endif    
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -285,11 +439,10 @@ void* thread_lpr(void* arg)
             continue;
         }
 
-
+        bool bIsWanted = false; // add. by ariari : 2022.03.21
         boxes.clear();
-#if true   // real code
-        
-        // get image
+
+        // get resolution info
         if (Sm_Res->SharedMemoryRead((char *)&msq.data) < 0)
         {
             Sm_Res->SharedMemoryInit(); 
@@ -298,7 +451,8 @@ void* thread_lpr(void* arg)
         }
         capWidth    = msq.data.capWidth;
         capHeight   = msq.data.capHeight;
-    
+
+        // get image
         if (Sm_Grab->SharedMemoryRead((char *)buffer) < 0)
         {
             Sm_Grab->SharedMemoryInit();
@@ -306,14 +460,45 @@ void* thread_lpr(void* arg)
             break;
         }
 
+//#if true   // real code
+#ifndef LPR_ANALYSIS_EN   
+
         frame_gray = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
+        // add. by ariari : 2022.05.16 - begin
+        roi_w = ((roi_sx + roi_w) > msq.data.capWidth) ? msq.data.capWidth : roi_w;
+        roi_h = ((roi_sy + roi_h) > msq.data.capHeight) ? msq.data.capHeight : roi_h;
+
+        // image crop(roi)
+        cv::Rect rect(roi_sx, roi_sy, roi_w, roi_h);
+        frame_gray = frame_gray(rect);
+        //cv::imwrite("/oem/Screen_shot/crop.jpg", frame_gray);
+
+        // add. by ariari : 2022.05.16 - end
         cvtColor(frame_gray, frame_bgr, cv::COLOR_GRAY2BGR);
 
-#else   // false = for test(using image)
+#else   // test. 2022.03.18
+        // false = for test(using image) a
+        // add. by ariari : 2022.03.18
+
         // from image(for test)
         INFO_LOG(string("################## DEBUG MODE ##############################"));
-        frame_bgr = cv::imread("/oem/test_data/images.jpg");
-        cv::cvtColor(frame_bgr, frame_gray, cv::COLOR_BGR2GRAY);
+        string fname = files.front();
+        string strFileName = "/media/usb0/images/" + fname;
+        // color image
+        //frame_bgr = cv::imread("/oem/test_data/images.jpg");
+        //cv::cvtColor(frame_bgr, frame_gray, cv::COLOR_BGR2GRAY);
+        //std::cout << "cvtColor : " << "COLOR_BGR2GRAY" << std::endl;
+
+        // gray image
+        imgCPos = imgTCnt - files.size() + 1;
+        //frame_gray = cv::imread(strFileName, cv::IMREAD_GRAYSCALE);
+        //cvtColor(frame_gray, frame_bgr, cv::COLOR_GRAY2BGR);
+        frame_bgr = cv::imread(strFileName, cv::IMREAD_COLOR);
+        cvtColor(frame_bgr, frame_gray, cv::COLOR_BGR2GRAY);
+        //std::cout << "cvtColor : " << "COLOR_GRAY2BGR" << std::endl;
+
+        std::cout <<endl << "(" << imgCPos << "/" << imgTCnt << ")" << ", file name : " << strFileName << std::endl;
+        files.erase(files.begin());
 #endif        
         // run detect
         start_lpd = clock();
@@ -323,12 +508,27 @@ void* thread_lpr(void* arg)
         msg = string_format("Thread[ldetect] boxes: size=%d", boxes.size());
         DEBUG_LOG(msg);
 
+        //if (boxes.size()) 
+        //{
+        //    for (int i=0; i < boxes.size();i++)
+        //    { 
+        //        cout << "[LPD]box_" << (i+1) << " : " <<  boxes[i].lpr_string << ", score = " << boxes[i].score << endl;
+        //    }
+        //}
+
         mseconds_lpd  =(double)(end_lpd - start_lpd)/CLOCKS_PER_SEC;
         //fprintf(stderr, "Thread[ldetect] Use time is: %.8f\n", mseconds_lpd);
         msg = string_format("Thread[ldetect] Use time is: %.8f", mseconds_lpd);
         DEBUG_LOG(msg);
 
         // update : 번호판 확인
+        int ib = -1; // index of box
+        // add. by ariari : 2022.05.22
+        int pos = 0;
+#ifdef EN_LIST_DISP
+        msq_lpdr_result.data.detect_num = 0;
+        //Sm_Lpdr->SharedMemoryWrite((char*)&msq_lpdr_result.detect_num, sizeof(long));
+#endif
         if (boxes.size()) 
         {
             mseconds_lpd  = 0;
@@ -342,24 +542,50 @@ void* thread_lpr(void* arg)
             DEBUG_LOG(msg);
 
             // matched
-            int ib = -1; // index of box
+            //int ib = -1; // index of box
             if (boxes.size())
             {
-                bool bIsWanted = false;
+                //bool bIsWanted = false;
+                bIsWanted = false;  // mod. by ariari : 2022.03.21
+                int valid_box = 0;  // add. by ariari : 2022.05.20
                 for (int i=0; i < boxes.size();i++)
                 { 
                     int len = boxes[i].lpr_string.size();
+
+                    // add. by ariari : 2022.05.20 - begin
+                    //cout << "box_" << (i+1) << " : " <<  boxes[i].lpr_string << ", len = " << len << ", score = " << boxes[i].score << endl;
+                    // add. by ariari : 2022.05.20 - end
+
                     if(len < 4) continue;
                     // extract to digit part(4자리 숫자)
                     std::string digit = boxes[i].lpr_string.substr(len-4, len-1);
 
                     //fprintf(stderr, "license plate number[%d] : %s([flag:%d]digit = %s)\n", i, boxes[i].lpr_string.c_str(), isNumber(digit), digit.c_str());
-                    msg = string_format("license plate number[%d] : %s([flag:%d]digit = %s)", i, boxes[i].lpr_string.c_str(), isNumber(digit), digit.c_str());
-                    INFO_LOG(msg);
+                    //msg = string_format("license plate number[%d] : %s([flag:%d]digit = %s), strlen=%d", i, boxes[i].lpr_string.c_str(), isNumber(digit), digit.c_str(), strlen(boxes[i].lpr_string.c_str()));
+                    //INFO_LOG(msg);
                     //fprintf(stderr, "x1:%d, y1:%d, x2:%d, y2:%d\n", boxes[i].x1, boxes[i].y1, boxes[i].x2, boxes[i].y2);
                     //std::cout << "lpr_string : " << boxes[i].lpr_string << std::endl;
                     if(isNumber(digit))
                     {
+                        ib = i;
+
+                        // add. by ariari : 2022.04.04 - begin
+#ifndef EN_DEMO   // mod. by ariari : 2022.05.16 - begin
+                        if(cont_det_num > 1)
+                        {
+                            if(strPrevCarNo.compare(boxes[i].lpr_string) != 0)
+                            {
+                                ib = -1;
+                            }
+                            strPrevCarNo = boxes[i].lpr_string;
+                            if(ib < 0) {
+                                //std::cout << "skip : " << boxes[i].lpr_string << std::endl;
+                                break;
+                            }
+                        }
+#endif   // mod. by ariari : 2022.05.16 - end
+                        // add. by ariari : 2022.04.04 - begin
+
                         // 수배차량 조회
                         bIsWanted = isWanted(boxes[i].lpr_string.c_str());
                         if(bIsWanted)
@@ -373,9 +599,40 @@ void* thread_lpr(void* arg)
                             msg = string_format("일반차량 : %s", boxes[i].lpr_string.c_str());
                         }
                         INFO_LOG(msg);
-
-                        ib = i;
+#ifndef EN_DEMO
                         break;  // big one
+#else
+
+                    #ifdef EN_LIST_DISP
+                        msq_lpdr_result.msg_type = 1;
+                        memset(msq_lpdr_result.data.data[pos].status, 0, sizeof(msq_lpdr_result.data.data[pos].status));
+                        memset(msq_lpdr_result.data.data[pos].carNo, 0, sizeof(msq_lpdr_result.data.data[pos].carNo));
+                        string status = convertWantedType(code_value);  // from database(table:wanted, col[0,1,2], col[1]:code)
+                        strncpy(msq_lpdr_result.data.data[pos].status, status.c_str(), status.size());   
+                        strncpy(msq_lpdr_result.data.data[pos].carNo, boxes[ib].lpr_string.c_str(), boxes[ib].lpr_string.size());
+                        msq_lpdr_result.data.data[pos].x     = boxes[ib].x1;
+                        msq_lpdr_result.data.data[pos].y     = boxes[ib].y1;
+                        msq_lpdr_result.data.data[pos].endX  = boxes[ib].x2;
+                        msq_lpdr_result.data.data[pos].endY  = boxes[ib].y2;
+                        msq_lpdr_result.data.data[pos].score = boxes[ib].score * 100;
+                        pos++;
+                        msq_lpdr_result.data.detect_num = pos;
+                        #else
+                        msq_lpdr_info.msg_type = 1;
+                        memset(msq_lpdr_info.data.status, 0, sizeof(msq_lpdr_info.data.status));
+                        memset(msq_lpdr_info.data.carNo, 0, sizeof(msq_lpdr_info.data.carNo));
+                        string status = convertWantedType(code_value);  // from database(table:wanted, col[0,1,2], col[1]:code)
+                        strncpy(msq_lpdr_info.data.status, status.c_str(), status.size());   
+                        strncpy(msq_lpdr_info.data.carNo, boxes[ib].lpr_string.c_str(), boxes[ib].lpr_string.size());
+                        msq_lpdr_info.data.x = boxes[ib].x1;
+                        msq_lpdr_info.data.y = boxes[ib].y1;
+                        msq_lpdr_info.data.endX = boxes[ib].x2;
+                        msq_lpdr_info.data.endY = boxes[ib].y2;
+                        msq_lpdr_info.data.score = boxes[ib].score * 100;
+                        Mq_Lpdr_Info->MessageQueueWrite((char *)&msq_lpdr_info);
+                        //cout << "[LPD]x = " << msq_lpdr_info.data.x << ", y = " << msq_lpdr_info.data.y << ", endX = " << msq_lpdr_info.data.endX << ", endY = " << msq_lpdr_info.data.endX << endl;
+                    #endif
+#endif                        
                     }
 
 #if false
@@ -392,6 +649,27 @@ void* thread_lpr(void* arg)
 #endif
                 }   // for
 
+#ifdef EN_DEMO 
+                if(ib > -1)
+                {   
+                    //Sm_Lpdr->SharedMemoryWrite((char*)&msq_lpdr_result, MEM_SIZE_SM_LPDR);
+                    Mq_Lpdr_Info->MessageQueueWrite((char *)&msq_lpdr_result);
+                    //cout << "msq_lpdr_result->detect num = " << msq_lpdr_result.data.detect_num << endl;
+                    //msg = string_format("lmsq_lpdr_result->detect num = %d)", msq_lpdr_result.data.detect_num);
+                    //INFO_LOG(msg);
+                }
+#endif
+               
+                // add. by ariari : 2022.05.04
+                if(ib < 0) 
+                {
+#ifdef LPR_ANALYSIS_EN
+                    msg = to_string(imgCPos) + "," + fname + ","  + "0" + ", "+ "0" + "," + "0" + "," + "0" + "," + "0" + "," + "" + "," + "";
+                    resultFile << msg.c_str() << endl;
+#endif                    
+                    continue;    
+                }
+
                 //////////////////////////////////////////////////////////////////////////////////////////////
                 // 1. copy to /userdata/result/timestamp_0.jpg
                 // 2. copy to /userdata/result/timestamp_1.jpg
@@ -399,6 +677,8 @@ void* thread_lpr(void* arg)
                 //////////////////////////////////////////////////////////////////////////////////////////////
                 file_info fInfo;
                 int qsize = Mq_Lpdr->MessageQueueQNum();
+                msg = string_format("Inference qsize : %d", qsize);
+                INFO_LOG(msg);
                 // message queue full
                 // old data : delete
                 // new data : add
@@ -435,6 +715,12 @@ void* thread_lpr(void* arg)
                     cv::imwrite(fInfo.fileLpd.c_str(), lpd);
                     cv::imwrite(fname_tmp.c_str(), lpd);
 
+#ifdef LPR_ANALYSIS_EN
+                    std::string fname_result;
+                    fname_result = "/media/usb0/result/lpd_" + fname;
+                    cv::imwrite(fname_result.c_str(), lpd);
+#endif
+
                     // 수배정보에 관계없이 기록
                     msq_lpdr.msg_type = 1;
                     msq_lpdr.data.timestamp = msecs_time;
@@ -462,6 +748,11 @@ void* thread_lpr(void* arg)
                     // 수배대상에 대해서만 소켓통신 준비
                     if(bIsWanted)
                     {
+                        msg = string_format("[PUSH_Queue]file : %s", fInfo.fileOrg.c_str());
+                        INFO_LOG(msg);
+                        msg = string_format("[PUSH_Queue]file : %s", fInfo.fileLpd.c_str());
+                        INFO_LOG(msg);
+
                         // 중복체크
                         //if(checkCoolTime(msq_lpdr.data.carNo))
                         {
@@ -474,8 +765,11 @@ void* thread_lpr(void* arg)
                     else
                     {
                         // file delete
-                        deleteFile(fInfo.fileOrg);
-                        deleteFile(fInfo.fileLpd);
+                        //if(nIsWanted < 0)   // add. by ariari : 2022.05.02
+                        {
+                            deleteFile(fInfo.fileOrg);
+                            deleteFile(fInfo.fileLpd);
+                        }
                     }
 
                     #if false
@@ -513,8 +807,8 @@ void* thread_lpr(void* arg)
                     rename("/oem/Screen_shot/1_tmp.jpg", "/oem/Screen_shot/1.jpg");
                 }
                 //////////////////////////////////////////////////////////////////////////////////////////////
-                
             }
+
             mseconds_lpr  =(double)(end_lpr - start_lpr)/CLOCKS_PER_SEC;
             //fprintf(stderr, "Thread[locr] Use time is: %.8f\n\n", mseconds_lpr);
             msg = string_format("Thread[locr] Use time is: %.8f", mseconds_lpr);
@@ -522,6 +816,19 @@ void* thread_lpr(void* arg)
 
             cv::imwrite("/oem/Screen_shot/detect.jpg", frame_gray);
         }
+
+#ifdef LPR_ANALYSIS_EN
+        if (boxes.size() && ib >= 0)
+        {
+            msg = to_string(imgCPos) + "," + fname + "," + to_string(code_value) + "," + to_string(msq_lpdr.data.x) + "," + to_string(msq_lpdr.data.y) + "," + to_string(msq_lpdr.data.endX) + "," + to_string(msq_lpdr.data.endY) + "," + msq_lpdr.data.carNo + "," + msq_lpdr.data.status;
+        }
+        else 
+        {
+            msg = to_string(imgCPos) + "," + fname + ","  + "0" + ", "+ "0" + "," + "0" + "," + "0" + "," + "0" + "," + "" + "," + "";
+        }
+        cout << "result : [ " << msg << " ]" << endl << endl;
+        resultFile << msg.c_str() << endl;
+#endif        
 
     }
 
@@ -531,8 +838,15 @@ void* thread_lpr(void* arg)
     SAFE_DELETE(Sm_Res);
     SAFE_DELETE(Sm_Lpr);
     SAFE_DELETE(Mq_Lpdr);
-
+#ifdef EN_DEMO    
+    SAFE_DELETE(Mq_Lpdr_Info);
+    //SAFE_DELETE(Sm_Lpdr);
+#endif
     INFO_LOG(string("EXIT!!!, LPR Thread!!!")); 
+
+#ifdef LPR_ANALYSIS_EN
+    resultFile.close();
+#endif    
 
     return nullptr;
 }
@@ -546,7 +860,8 @@ int main(int argc, char** argv) {
     string strDetectModelBin = "";
     string strDetectModelParam = "";
     string strOCRModel = "";
-    while ((res=getopt(argc, argv, "t:d:p:o:h")) != -1) {
+    //while ((res=getopt(argc, argv, "t:d:p:o:h")) != -1) {
+    while ((res=getopt(argc, argv, "t:d:p:o:f:h")) != -1) {    // add. by ariari : 2022.03.18
 		switch(res) {
         case 't':
             coolTime = stoi(optarg);
@@ -562,6 +877,9 @@ int main(int argc, char** argv) {
 		case 'o':   // lpd ai model(file full path)
 			strOCRModel = optarg;
 		break;
+
+        case 'f':
+        break;
 			
 		case 'h':
       std::cout << " [Usage]: " << argv[0] << " [-h]\n"
@@ -594,7 +912,10 @@ int main(int argc, char** argv) {
     lpr_detect 	= new krlpr::l_detect(strDetectModelParam, strDetectModelBin);         //Load lpr model
 
     // LPR Model
+    // rem. by ariri : 2022.05.24
     lpr_ocr 	= new krlpr::l_ocr(strOCRModel);         //Load lp ocr model
+    // add. by visiongo : 2022.05.24
+    //lpr_ocr 	= new krlpr::l_ocr(strOCRModel, 96, 32);         //Load lp ocr model
    
 #if true
 #if false

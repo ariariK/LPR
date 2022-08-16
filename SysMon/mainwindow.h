@@ -7,6 +7,7 @@
 #include "threaddevusb0.h"
 #include "threaddevusb1.h"
 #include "threaddevusb2.h"
+#include "threaddevgpio.h"  // add. by ariari : 2022.07.18
 
 #include <QMainWindow>
 #include <QProgressBar>
@@ -23,6 +24,24 @@
 #define INFO_LOG(fmt, ...)      { syslog(LOG_INFO,    "[Info][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
 #define DEBUG_LOG(fmt, ...)     { syslog(LOG_DEBUG,   "[Debug][%s: %d] %s", __FILE__, __LINE__, fmt.c_str()); }
 
+typedef struct _HealthResult {   
+    int DD_Eth0;
+    int DD_Eth1;
+    int DD_USB_F2_0;
+    int DD_USB_F3_0;
+
+    int ST_Eth0;
+    int ST_Eth1;
+    int ST_USB_F2_0;
+    int ST_USB_F3_0;
+
+    int LED_PWR;
+    int LED_SYS;
+    int LED_CAM;
+    int LED_IR;
+
+    QString fw_version;
+} HealthResult;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -46,6 +65,7 @@ private:
     QTime runTime;
     time_t startTime;
 
+    HealthResult    stResult;
 
 private:
     Ui::MainWindow *ui;
@@ -55,6 +75,7 @@ private:
     ThreadDevUsb0   *thDevUsb0;
     ThreadDevUsb1   *thDevUsb1;
     ThreadDevUsb2   *thDevUsb2;
+    ThreadDevGpio   *thDevGpio; // add. by ariari : 2022.07.18
 
     void updateMacAddress();
     void updateProgressBar();
@@ -73,6 +94,7 @@ private slots:
     void updateUsb0();
     void updateUsb1();
     void updateUsb2();
+    void updateGPIOs(); // add. by ariari : 2022.07.18
 
 };
 #endif // MAINWINDOW_H

@@ -80,6 +80,8 @@ public:
 	int 	SetExposureLow(float value);
 	int 	SetExposureHigh(float value);
 	
+	// add. by ariri : 2022.05.18 
+	int SetImageProcess(bool bImgProcEn, bool bGammaEn, bool bSharpEn, int nSharpAuto, float fGamma, int nSharp);
 
 	int		DoConnection();
 	int 	DoDisconnection();
