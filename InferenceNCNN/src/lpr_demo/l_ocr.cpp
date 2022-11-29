@@ -165,7 +165,8 @@ namespace krlpr {
                 int baseLine;
                 cv::Size labelSize = cv::getTextSize(boxes[i].lpr_string, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
                 int top = std::max(top, labelSize.height);
-                cv::putText(src, boxes[i].lpr_string, cv::Point(boxes[i].x1, boxes[i].y1), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1);
+                // rem. by ariari : 2022.11.22 - 한글깨짐
+                //cv::putText(src, boxes[i].lpr_string, cv::Point(boxes[i].x1, boxes[i].y1), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1);
             #endif  // add. by ariari : 2022.05.20 - end
             } else {
                 boxes.erase(boxes.begin() + i);     // delete error lp

@@ -13,8 +13,12 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 
-#define KEY_NUM_SM		      1234          // 공유메모리 - 캡쳐 이미지
+#define KEY_NUM_SM		      1234          // 공유메모리 - 캡쳐 이미지(preview)
 #define MEM_SIZE_SM	        512*4096      // 공유메모리 크기
+// add. by ariari : 2022.11.09 : begin
+#define KEY_NUM_SM2		      2234          // 공유메모리 - 캡쳐 이미지(lpr)
+#define MEM_SIZE_SM2	      512*4096      // 공유메모리 크기
+// add. by ariari : 2022.11.09 : end
 #define KEY_NUM_SM_RES      1235          // 공유메모리 - 캡쳐 정보
 #define MEM_SIZE_SM_RES	    32            // 공유메모리 크기
 #define KEY_NUM_SM_LPR      1236          // 공유메모리 - 번호판 결과

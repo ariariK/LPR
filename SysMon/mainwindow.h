@@ -67,6 +67,9 @@ private:
 
     HealthResult    stResult;
 
+    int screenWidth;            // add. by ariari : 2022.10.12
+    int screenHeight;           // add. by ariari : 2022.10.12   
+
 private:
     Ui::MainWindow *ui;
     Thread *thread;
@@ -79,6 +82,7 @@ private:
 
     void updateMacAddress();
     void updateProgressBar();
+    void CheckScreenGeometry(); // add. by ariari : 2022.10.12
 
     // IPC
     void initPIPE();

@@ -31,6 +31,8 @@ using namespace Spinnaker::GenICam;
 #define DISP_OBJ_LIST
 #endif
 
+#define FD_CUSTOM_CODE	        "/etc/config/ccode" // custom code
+
 std::map<std::string, std::string> hangul_dict = {
         { "가", "10" },{ "나", "11" },{ "다", "12" },{ "라", "13" },{ "마", "14" },
         { "거", "15" },{ "너", "16" },{ "더", "17" },{ "러", "18" },{ "머", "19" },
@@ -57,6 +59,29 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    // add. by ariari : 2022.11.22 - begin
+    // read custom code
+    QString c_code("0");
+    QString cc_file(FD_CUSTOM_CODE);
+    if (QFile::exists(cc_file) == true) 
+    {
+        QFile file(cc_file);
+        if(!file.open(QFile::ReadOnly | QFile::Text))
+        {
+            qDebug() << " Could not open file(custom code) for writing";
+        }
+        else 
+        {
+            QTextStream out(&file);
+            c_code = out.readAll();
+            c_code.chop(1);
+            qDebug() << c_code;	
+            file.flush();
+            file.close();
+        } 
+    }
+    // add. by ariari : 2022.11.22 - end
+
     // 동작시간
     startTime = time(NULL); // 현재 시간을 받음
 
@@ -79,6 +104,7 @@ MainWindow::MainWindow(QWidget *parent)
             QTextStream out(&file);
             version = "Ver. " + out.readAll();
             version.chop(1);
+            version = version + "(" + c_code + ")"; // add. by ariari : 2022.11.22
             qDebug() << version;	
             file.flush();
             file.close();
@@ -87,6 +113,20 @@ MainWindow::MainWindow(QWidget *parent)
     else
     {
     }
+
+    // add. by ariari : begin - 2022.09.19
+    // file name : info.txt
+    // full path : /oem/info.txt
+    //QString info_file("/oem/info.txt");
+    //QFile f_info(info_file);
+    //if (QFile::exists(info_file) == true) 
+    //{   
+    //    // create empty file
+    //    f_info.open(QFile::WriteOnly|QFile::Text);
+    //    f_info.flush();
+    //    f_info.close();
+    //}
+    // add. by ariari : end - 2022.09.19
 
     openlog(LOG_NAME, LOG_PID, LOG_USER);
 
@@ -99,10 +139,23 @@ MainWindow::MainWindow(QWidget *parent)
     //ui->screen->setStyleSheet("QLabel { background-color : blue; color : white; }");
 
     QRect rec = QApplication::desktop()->screenGeometry();
+#if false // org    // rem. by ariari : 2022.11.11
     screenWidth     = rec.width() - MARGIN_HOR;
     screenHeight    = rec.height() - MARGIN_VER;
     ui->screen->setMinimumSize(screenWidth, screenHeight);
     ui->screen->setMaximumSize(screenWidth, screenHeight);
+#else               // add. by ariar : 2022.11.11
+    screenWidth     = rec.width();
+    screenHeight    = rec.height();
+    ui->screen->setMinimumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+    ui->screen->setMaximumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+
+    int offset_x = 20;
+    rect_city.setRect((2*ui->screen->width())/3 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.2, 200);
+    rect_left.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.25, 200);
+    rect_center.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.1, 200);
+    rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.35, 200);
+#endif
     
     // font
     QFont font = ui->screen->font();
@@ -183,6 +236,7 @@ MainWindow::MainWindow(QWidget *parent)
     roi_sy = 0;
     roi_w = 1920;
     roi_h = 1080;
+#if false // add. by ariari : 2022.11.22 - begin    
     QFile file("/oem/config_lpr.txt");
     if(!file.open(QFile::ReadOnly | QFile::Text))
     {
@@ -237,6 +291,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         qDebug() << " Close config file!!!";
     }
+#endif // add. by ariari : 2022.11.22 - end    
     // add. by ariari : 2022.05.16 - end
 
 }
@@ -278,6 +333,8 @@ void MainWindow::GetParameters()
 
 void MainWindow::CheckScreenGeometry()
 {
+    static int pre_hdmi_status = -1;    // 0:disconnected, 1:connected
+    int hdmi_status;
     // add. by ariari : 2022.02.16 - begin
     // check connection 
     // /sys/class/drm/card0-HDMI-A-1/status : connected or disconnected
@@ -296,14 +353,104 @@ void MainWindow::CheckScreenGeometry()
     //if(statusTxt.compare("disconnected") == 0) return;    // HDMI연결하기 전에는 실시간영상의 하단우측 번호정보가 표시 안됨 : rem. by ariari : 2022.05.04
     // add. by ariari : 2022.02.16 - end
 
-
+    // add. by ariari : 2022.11.11 - begin
     QRect rec = QApplication::desktop()->screenGeometry();
+#if true    // add. by ariari : 2022.11.11
+    if(statusTxt.compare("connected") == 0)
+    {
+        hdmi_status = 1;
+
+        QFile file_mode("/sys/class/drm/card0-HDMI-A-1/mode");
+        if(!file_mode.open(QFile::ReadOnly | QFile::Text))
+        {
+            qDebug() << " Could not open the file for reading";
+            //return "";
+        }
+
+        QTextStream in_mode(&file_mode);
+        QString modeTxt = in_mode.readLine();
+        file_mode.close();
+        QStringList list = modeTxt.split("x");
+        screenWidth = stoi(list.at(0).toStdString().c_str());
+        screenHeight = stoi(list.at(1).toStdString().c_str());
+        //printf("HDMI Mode = %s, (%dx%d)\n", modeTxt.toStdString().c_str(), screenWidth, screenHeight);
+
+        //if (screenWidth != rec.width() || screenHeight != rec.height())
+        if (pre_hdmi_status != 1 || screenWidth != rec.width() || screenHeight != rec.height())
+        {
+            //printf("[000000000000000000]screenWidth : %d, screenHeight : %d, rec.width() : %d, rec.height() : %d\n", screenWidth, screenHeight, rec.width(), rec.height());
+
+            ui->screen->setMinimumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+            ui->screen->setMaximumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+
+            int offset_x = 20;
+            rect_city.setRect((2*ui->screen->width())/3 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.2, 200);
+            rect_left.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.25, 200);
+            rect_center.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.1, 200);
+            rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.35, 200);
+        }
+    }
+    else
+    {
+        hdmi_status = 0;
+
+        if (screenWidth != rec.width() || screenHeight != rec.height())
+        {
+            //printf("[1111111111111111111]screenWidth : %d, screenHeight : %d, rec.width() : %d, rec.height() : %d\n", screenWidth, screenHeight, rec.width(), rec.height());
+
+            screenWidth     = rec.width();
+            screenHeight    = rec.height();
+            ui->screen->setMinimumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+            ui->screen->setMaximumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+
+            int offset_x = 20;  
+            rect_city.setRect((2*ui->screen->width())/3 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.2, 200); 
+            rect_left.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.25, 200);
+            rect_center.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.1, 200);
+            rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.35, 200);
+        }
+    }
+    pre_hdmi_status = hdmi_status;
+
+#else       // rem. by ariari : 2022.11.11
     if (screenWidth != rec.width() || screenHeight != rec.height())
     {
         screenWidth     = rec.width() - MARGIN_HOR;
         screenHeight    = rec.height() - MARGIN_VER;
         ui->screen->setMinimumSize(screenWidth, screenHeight);
         ui->screen->setMaximumSize(screenWidth, screenHeight);
+
+#if true
+        int offset_x = 20;
+        rect_city.setRect((2*ui->screen->width())/3 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.2, 200);
+        rect_left.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.25, 200);
+        rect_center.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.1, 200);
+        rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + offset_x, ui->screen->height() - 190,  (ui->screen->width()/3)*0.35, 200);
+#else
+        rect_left.setRect((2*ui->screen->width())/3, ui->screen->height() - 190,  (ui->screen->width()/3)*0.3, 200);
+        rect_center.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.3, ui->screen->height() - 190,  (ui->screen->width()/3)*0.2, 200);
+        rect_right.setRect((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.5, ui->screen->height() - 190,  (ui->screen->width()/3)*0.5, 200);
+#endif        
+    }
+#endif
+    // add. by ariari : 2022.11.11 - end
+
+    //QRect rec = QApplication::desktop()->screenGeometry();
+    if (screenWidth != rec.width() || screenHeight != rec.height())
+    {
+        printf("screenWidth : %d, screenHeight : %d, rec.width() : %d, rec.height() : %d\n", screenWidth, screenHeight, rec.width(), rec.height());
+
+        // rem. by ariari : 2022.11.11 - begin
+        //screenWidth     = rec.width() - MARGIN_HOR;
+        //screenHeight    = rec.height() - MARGIN_VER;
+        //ui->screen->setMinimumSize(screenWidth, screenHeight);
+        //ui->screen->setMaximumSize(screenWidth, screenHeight);
+        // rem. by ariari : 2022.11.11 - end
+
+        // add. by ariari : 2022.11.11 - begin
+        ui->screen->setMinimumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+        ui->screen->setMaximumSize(screenWidth - MARGIN_HOR, screenHeight - MARGIN_VER);
+        // add. by ariari : 2022.11.11 - end
 
 #if true
         int offset_x = 20;
@@ -395,7 +542,8 @@ void MainWindow::GetCarNoInfo(string strCarNo)
     // 한글 2글자가 앞에 위치(구버전 번호판)    
     for(i=0; i<6; i++)
     {
-        if((carNo[i] & 0x80) != 0x80)   // 숫자
+        //if((carNo[i] & 0x80) != 0x80)   // 숫자
+        if((strCarNo[i] & 0x80) != 0x80)   // 숫자  // mod. by ariari : 2022.11.21
         {
             ver = 1;    // new version
             break;
@@ -410,7 +558,8 @@ void MainWindow::GetCarNoInfo(string strCarNo)
         for(i=0; i<len; i++)
         {
             // 2. 첫번째 숫자부분(2~3자리)
-            if((carNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)
+            //if((carNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)
+            if((strCarNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)   // mod. by ariari : 2022.11.21
             {
                 size = i;
                 strNoFront = strCarNo.substr(0, size);
@@ -435,7 +584,8 @@ void MainWindow::GetCarNoInfo(string strCarNo)
         for(i=6; i<len; i++)
         {
             // 2. 첫번째 숫자부분(2~3자리)
-            if((carNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)
+            //if((carNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)
+            if((strCarNo[i] & 0x80) == 0x80)   // 한글체크(한글이 시작하는 위치 찾기)   // mod. by ariari : 2022.11.21
             {
                 size = i-6;
                 strNoFront = strCarNo.substr(i-size, size);     // mod. by ariari : 2021.11.25 bug fix : i => i-size
@@ -471,6 +621,106 @@ void MainWindow::GetCarNoInfo(string strCarNo)
     else
     {
         strHangulFileNameB = "/oem/hangul/00.jpg";
+    }
+ }
+
+ void MainWindow::WriteDebugInfo(QPainter *pPainter)
+ {
+    if (Sm_Cam->SharedMemoryRead((char *)&st_cam) < 0)
+    {
+        Sm_Cam->SharedMemoryInit();
+    }
+
+    // add. by ariari : 2022.11.22 - begin
+    draw_en = st_cam.draw_en;
+    roi_sx  = st_cam.roi_sx;
+    roi_sy  = st_cam.roi_sy;
+    roi_w   = st_cam.roi_w;
+    roi_h   = st_cam.roi_h;
+    // add. by ariari : 2022.11.22 - begin
+
+    // File Save
+    // file name : info.txt
+    // full path : /oem/info.txt
+    QString info_file("/oem/info.txt");
+    QFile f_info(info_file);
+    f_info.open(QFile::WriteOnly|QFile::Text);
+
+    // 
+    QTextStream SaveFile(&f_info);
+    SaveFile << "RUNNING_TIME"            <<  "\t\t" << " : " << GetRunningTime().toStdString().c_str() << endl;
+    SaveFile << "TOTAL_CAPTURE_COUNT"     <<  "\t" << " : "<< st_cam.capCount << endl; 
+    SaveFile << "AVG_FPS"                 <<  "\t\t\t" << " : "<< st_cam.capFPS << endl; 
+    SaveFile << "CPU_TEMP"                <<  "\t\t" << " : "<< GetCPUTemp().toStdString().c_str() << endl; 
+    f_info.flush();
+    f_info.close();
+
+
+    // move from update function...
+    if (pPainter != nullptr && QFile::exists("/media/usb0/debug_enable"))
+    {
+        QRectF debug_rect(screenWidth/2, 20, screenWidth/2-20, screenHeight-240);
+        //painter->setPen(QColor(Qt::yellow));
+        pPainter->setFont(font_dbg);
+        pPainter->setBrush(QColor(0, 0, 0));
+        pPainter->drawRect(debug_rect);
+
+        msg = string_format(" Program Running Time : %s", GetRunningTime().toStdString().c_str());
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+                
+        debug_rect.setY(debug_rect.y()+30);
+        msg = string_format(" Total Captured Frame : %ld, %.2f[FPS]", st_cam.capCount, st_cam.capFPS);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        
+        // rem. by ariari : 2022.11.09 : begin
+        //debug_rect.setY(debug_rect.y()+30);
+        //msg = string_format(" Target Clock Value : %ld[Hz]", st_cam.tarClk);
+        //pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        // rem. by ariari : 2022.11.09 : end
+
+        // add. by ariari : 2022.11.09 : begin
+        debug_rect.setY(debug_rect.y()+30);
+        msg = string_format(" Target AE Value : %d", st_cam.targetAE);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        // add. by ariari : 2022.11.09 : end
+
+        debug_rect.setY(debug_rect.y()+30);
+        msg = string_format(" Exposure - MIN : %.2f", st_cam.expMin);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        debug_rect.setY(debug_rect.y()+25);
+        msg = string_format(" Exposure - MAX : %.2f", st_cam.expMax);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        
+        debug_rect.setY(debug_rect.y()+30);
+        msg = string_format(" Shutter - MIN : %.2f[msec]", st_cam.shMin/1000);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        debug_rect.setY(debug_rect.y()+25);
+        msg = string_format(" Shutter - MAX : %.2f[msec]", st_cam.shMax/1000);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        
+        debug_rect.setY(debug_rect.y()+30);
+        msg = string_format(" Gain - MIN : %.2f[dB]", st_cam.gainMin);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        debug_rect.setY(debug_rect.y()+25);
+        msg = string_format(" Gain - MAX : %.2f[dB]", st_cam.gainMax);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        
+        debug_rect.setY(debug_rect.y()+30);
+        msg = string_format(" Current DN(IR) Status : %s", st_cam.dnStatus ? "OFF" : "ON");
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        debug_rect.setY(debug_rect.y()+25);
+        msg = string_format(" Current Exposure Value : %.2f (%02f%%)", st_cam.expCur, st_cam.expCurPercent);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        debug_rect.setY(debug_rect.y()+25);
+        msg = string_format(" Current Shutter Value : %.3f[msec]", st_cam.shCur/1000);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+        debug_rect.setY(debug_rect.y()+25);
+        msg = string_format(" Current Gain Value : %.3f[dB]", st_cam.gainCur);
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+
+        debug_rect.setY(debug_rect.y()+30);
+        msg = string_format(" CPU Temperature : %s", GetCPUTemp().toStdString().c_str());
+        pPainter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
     }
  }
 
@@ -538,7 +788,8 @@ void MainWindow::Update()
 
         // background
         //cv::rectangle(cvimg, Rect(Point(20,10) + Point(0,50), Point(20,10) + Point(400,0)), Scalar(0,0,0),-1);
-        cv::rectangle(cvimg, Rect(Point(20,10), Point(400,60)), Scalar(0,0,0),-1);
+        //cv::rectangle(cvimg, Rect(Point(20,10), Point(400,60)), Scalar(0,0,0),-1);
+        cv::rectangle(cvimg, Rect(Point(20,10), Point(500,60)), Scalar(0,0,0),-1);  // mod. by ariari : 2022.11.22 for custom code value
         cv::putText(cvimg, version.toLocal8Bit().data(), cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 4);
 
 
@@ -598,21 +849,29 @@ void MainWindow::Update()
         //int ex = 1920;  // end x
         //int ey = 1080;  // end y
         
+        int red_offset = roi_h/3;   // 
+        int adj_roi_w, adj_roi_h;   // add. by ariari : 2022.11.16
         if(draw_en || QFile::exists("/media/usb0/draw_enable"))
         {
-            roi_w = ((roi_sx+roi_w) > capWidth) ? (capWidth-roi_sx) : roi_w;
-            roi_h = ((roi_sy+roi_h) > capHeight) ? (capHeight-roi_sy) : roi_h;
+            //printf("roi_sx:%d, roi_sy:%d, roi_w:%d, roi_h:%d\n", roi_sx, roi_sy, roi_w, roi_h);
+            //roi_w = ((roi_sx+roi_w) > capWidth) ? (capWidth-roi_sx) : roi_w;
+            //roi_h = ((roi_sy+roi_h) > capHeight) ? (capHeight-roi_sy) : roi_h;
+            adj_roi_w = ((roi_sx+roi_w) > capWidth) ? (capWidth-roi_sx) : roi_w;
+            adj_roi_h = ((roi_sy+roi_h) > capHeight) ? (capHeight-roi_sy) : roi_h;
             int rx = (live_wnd_width*roi_sx)/capWidth;      // remap x
             int ry = (live_wnd_height*roi_sy)/capHeight;    // remap y
-            int rw = (live_wnd_width*roi_w)/capWidth;       // remap w
-            int rh = (live_wnd_height*roi_h)/capHeight;     // remap h
+            int rw = (live_wnd_width*adj_roi_w)/capWidth;       // remap w
+            int rh = (live_wnd_height*adj_roi_h)/capHeight;     // remap h
             //painter->drawRect(0, 0, ui->screen->width() - 2, ui->screen->height() - 200);  // rectangle
             painter->drawRect(rx, ry, rw-2, rh-2);  // rectangle
+
+            //printf("cw:%d, ch:%d, lw:%d, lh:%d, roi_w:%d, roi_h:%d, rx:%d, ry:%d, rw:%d, rh:%d\n", capWidth, capHeight, live_wnd_width, live_wnd_height, roi_w, roi_h, rx, ry, rw, rh);
 
 
             // add. by ariari : 2022.05.20
             // red line(zone)
-            int red_offset = (rh/3);
+            //int red_offset = (rh/3);
+            red_offset = (rh/3);
 
             QPen redZone_pen(Qt::red);
             redZone_pen.setWidth(4);
@@ -639,8 +898,10 @@ void MainWindow::Update()
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // add. by ariari : 2022.05.20 - begin
     #if true   
-        float ratio_w = (float)w1_w/roi_w;
-        float ratio_h = (float)w1_h/roi_h;     
+        //float ratio_w = (float)w1_w/roi_w;
+        //float ratio_h = (float)w1_h/roi_h;     
+        float ratio_w = (float)w1_w/adj_roi_w;  // add. by ariari : 2022.11.16
+        float ratio_h = (float)w1_h/adj_roi_h;  // add. by ariari : 2022.11.16
 
         QPen box_pen(Qt::red);
         box_pen.setWidth(4);
@@ -650,124 +911,149 @@ void MainWindow::Update()
             // add. by ariari : 2022.05.23
             int cnt_list = Mq_Lpdr_Info->MessageQueueQNum();
             //cout << "cnt list = " << cnt_list << endl;
+
+            // add. by ariari : 2022.11.17 - begin
+            QRectF list_rect_debug((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + 20, 20, (ui->screen->width()/3)*0.8, 48);
+            msg = string_format(" DN(IR):%s, Exp:%.02f%%", st_cam.dnStatus ? "OFF" : "ON", st_cam.expCurPercent);
+            painter->drawText(list_rect_debug, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            // add. by ariari : 2022.11.17 - end
+
             if(cnt_list > 0)
             {
                 int pos = 0;
 
         #if true    // for
-                memset((char*)&msq_lpdr_result, 0, sizeof(struct lpdr_result));
-                if(Mq_Lpdr_Info->MessageQueueRead((char*)&msq_lpdr_result) > 0)
-                {
-                    int len = msq_lpdr_result.data.detect_num;
-                    //cout << "[preview]msq_lpdr_result.data.detect_num = " << msq_lpdr_result.data.detect_num << endl;
-                    for(int i=0; i<len; i++)
+                do {    // add. by ariari : 2022.11.14
+                    pos = 0;
+                    memset((char*)&msq_lpdr_result, 0, sizeof(struct lpdr_result));
+                    if(Mq_Lpdr_Info->MessageQueueRead((char*)&msq_lpdr_result) > 0)
                     {
-                        //cout << "i = " << pos << ", len = " << len << ", msq_lpdr_result.data.data[pos].carNo = " << msq_lpdr_result.data.data[pos].carNo << endl;
-                        //msg = string_format("[PREVIEW]i = %d, len = %d, carNo = %s", i, len, msq_lpdr_result.data.data[pos].carNo);
-                        //INFO_LOG(msg);
-                        // claer
-                        //memset((char*)&msq_lpdr_info, 0, sizeof(struct lpdr_info));
-                        //memset((char*)&msq_lpdr_result, 0, sizeof(struct lpdr_result));
-                        //if( Mq_Lpdr_Info->MessageQueueRead((char*)&lpdr_result) > 0 )     // non-blocking mode(IPC_NOWAIT)
-                        //if(1)
+                        int len = msq_lpdr_result.data.detect_num;
+                        //cout << "[preview]msq_lpdr_result.data.detect_num = " << msq_lpdr_result.data.detect_num << endl;
+                        for(int i=0; i<len; i++)
                         {
-                            // 최대 10(MQ_LPDR_INFO_MAX_QSIZE)
-                            int box_sx = msq_lpdr_result.data.data[pos].x * ratio_w;
-                            int box_sy = msq_lpdr_result.data.data[pos].y * ratio_h;
-                            int box_w  = (msq_lpdr_result.data.data[pos].endX - msq_lpdr_result.data.data[pos].x) * ratio_w;
-                            int box_h  = (msq_lpdr_result.data.data[pos].endY - msq_lpdr_result.data.data[pos].y) * ratio_h;
-
-
-                            // draw box...(하단우측)
-                            painter->setPen(box_pen);
-                            painter->drawRect(w1_sx + box_sx, w1_sy + box_sy, box_w, box_h);
-
-            #ifdef DISP_OBJ_LIST
-                            strncpy(carNo, msq_lpdr_result.data.data[pos].carNo, strlen(msq_lpdr_result.data.data[pos].carNo));
-                            string strCarNo_new(msq_lpdr_result.data.data[pos].carNo);
-                            GetCarNoInfo(strCarNo_new);
-
-                            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                            // backup
+                            //cout << "i = " << pos << ", len = " << len << ", msq_lpdr_result.data.data[pos].carNo = " << msq_lpdr_result.data.data[pos].carNo << endl;
+                            //msg = string_format("[PREVIEW]i = %d, len = %d, carNo = %s", i, len, msq_lpdr_result.data.data[pos].carNo);
+                            //INFO_LOG(msg);
                             // claer
-                            memset((char*)&info_bk[pos], 0, sizeof(struct lpdr_info));
-                            info_bk[pos].x = msq_lpdr_result.data.data[pos].x;
-                            info_bk[pos].y = msq_lpdr_result.data.data[pos].y;
-                            info_bk[pos].endX = msq_lpdr_result.data.data[pos].endX;
-                            info_bk[pos].endY = msq_lpdr_result.data.data[pos].endY;
-                            strBKNoFront[pos]   = strNoFront;
-                            strBKNoBack[pos]    = strNoBack;
-                            strBKHangulFileNameF[pos] = strHangulFileNameF;
-                            strBKHangulFileNameB[pos] = strHangulFileNameB;
-
-                            //pos++;
-                            //msq_lpdr_result.data.detect_num = pos;
-
-                            //if(pos > 9) break;  // max
-                            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-                            QRectF list_rect_left((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + 20, 20 + pos*80,  (ui->screen->width()/3)*0.25, 48);
-                            QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + 20, 20 + pos*80,  (ui->screen->width()/3)*0.35, 48);
-                            QRectF list_rect_score((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + 20, 20 + pos*80 + 48,  (ui->screen->width()/3)*0.35, 48);
-
-                            //if(msq_lpdr_result.data.data[pos].y > red_offset)     // valid
-                            if(info_bk[pos].y > red_offset)     // valid
+                            //memset((char*)&msq_lpdr_info, 0, sizeof(struct lpdr_info));
+                            //memset((char*)&msq_lpdr_result, 0, sizeof(struct lpdr_result));
+                            //if( Mq_Lpdr_Info->MessageQueueRead((char*)&lpdr_result) > 0 )     // non-blocking mode(IPC_NOWAIT)
+                            //if(1)
                             {
-                                painter->setPen(QColor(Qt::yellow));
-                                painter->setFont(font_lpr);
+                                // 최대 10(MQ_LPDR_INFO_MAX_QSIZE)
+                                int box_sx = msq_lpdr_result.data.data[pos].x * ratio_w;
+                                int box_sy = msq_lpdr_result.data.data[pos].y * ratio_h;
+                                int box_w  = (msq_lpdr_result.data.data[pos].endX - msq_lpdr_result.data.data[pos].x) * ratio_w;
+                                int box_h  = (msq_lpdr_result.data.data[pos].endY - msq_lpdr_result.data.data[pos].y) * ratio_h;
 
-                                painter->drawPixmap(rect_city.x(), 20 + pos*80, rect_city.width(), 48, QPixmap(strBKHangulFileNameF[pos].c_str()));
-                                painter->drawText(list_rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoFront[pos].c_str());
-                                painter->drawPixmap(rect_center.x(), 20 + pos*80, rect_center.width(), 48, QPixmap(strBKHangulFileNameB[pos].c_str()));
-                                painter->drawText(list_rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoBack[pos].c_str());
-                                //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(msq_lpdr_info.data.score));
+
+                                // draw box...(하단우측)
+                                painter->setPen(box_pen);
+                                painter->drawRect(w1_sx + box_sx, w1_sy + box_sy, box_w, box_h);
+
+                #ifdef DISP_OBJ_LIST
+                                strncpy(carNo, msq_lpdr_result.data.data[pos].carNo, strlen(msq_lpdr_result.data.data[pos].carNo));
+                                string strCarNo_new(msq_lpdr_result.data.data[pos].carNo);
+                                GetCarNoInfo(strCarNo_new);
+
+                                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                                // backup
+                                // claer
+                                memset((char*)&info_bk[pos], 0, sizeof(struct lpdr_info));
+                                info_bk[pos].x = msq_lpdr_result.data.data[pos].x;
+                                info_bk[pos].y = msq_lpdr_result.data.data[pos].y;
+                                info_bk[pos].endX = msq_lpdr_result.data.data[pos].endX;
+                                info_bk[pos].endY = msq_lpdr_result.data.data[pos].endY;
+                                info_bk[pos].score = msq_lpdr_result.data.data[pos].score;  // add. by ariari : 2022.11.16
+                                strBKNoFront[pos]   = strNoFront;
+                                strBKNoBack[pos]    = strNoBack;
+                                strBKHangulFileNameF[pos] = strHangulFileNameF;
+                                strBKHangulFileNameB[pos] = strHangulFileNameB;
+
+                                //pos++;
+                                //msq_lpdr_result.data.detect_num = pos;
+
+                                //if(pos > 9) break;  // max
+                                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                                QRectF list_rect_left((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + 20,     80 + 20 + pos*80,  (ui->screen->width()/3)*0.25, 48);
+                                //QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + 20,   80 + 20 + pos*80,  (ui->screen->width()/3)*0.35, 48);
+                                QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + 20,   80 + 20 + pos*80,  (ui->screen->width()/3)*0.35, 48);
+                                QRectF list_rect_score((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.65 + 20,   80 + 20 + pos*80,  (ui->screen->width()/3)*0.30, 48);
+
+
+                                //cout << "info_bk[pos].y = " << info_bk[pos].y*live_wnd_height/capHeight << ", red_offset = " << red_offset << endl;
+
+                                //if(msq_lpdr_result.data.data[pos].y > red_offset)     // valid
+                                //if(info_bk[pos].y > red_offset)     // valid
+                                red_offset = 0;
+                                if((info_bk[pos].y*live_wnd_height/capHeight) > red_offset)     // valid
+                                {
+                                    painter->setPen(QColor(Qt::yellow));
+                                    painter->setFont(font_lpr);
+
+                                    painter->drawPixmap(rect_city.x(), 80 + 20 + pos*80, rect_city.width(), 48, QPixmap(strBKHangulFileNameF[pos].c_str()));
+                                    painter->drawText(list_rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoFront[pos].c_str());
+                                    painter->drawPixmap(rect_center.x(), 80 + 20 + pos*80, rect_center.width(), 48, QPixmap(strBKHangulFileNameB[pos].c_str()));
+                                    painter->drawText(list_rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoBack[pos].c_str());
+                                    //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(msq_lpdr_info.data.score));
+
+                                    auto info = QString("%1:%2:%3").arg(info_bk[pos].score).arg(info_bk[pos].endX-info_bk[pos].x).arg(info_bk[pos].endY-info_bk[pos].y);
+                                    //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(info_bk[pos].score));
+                                    painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, info);
+                                }
+                                else
+                                {
+                                    //painter->setPen(QColor(Qt::red));
+                                    painter->setFont(lpd_box);
+
+                                    painter->drawPixmap(rect_city.x(), 80 + 12 + 20 + pos*80, rect_city.width(), 24, QPixmap(strBKHangulFileNameF[pos].c_str()));
+                                    painter->drawText(list_rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoFront[pos].c_str());
+                                    painter->drawPixmap(rect_center.x(), 80 + 12 + 20 + pos*80, rect_center.width(), 24, QPixmap(strBKHangulFileNameB[pos].c_str()));
+                                    painter->drawText(list_rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoBack[pos].c_str());
+                                    //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(msq_lpdr_info.data.score));
+
+                                    auto info = QString("%1:%2:%3").arg(info_bk[pos].score).arg(info_bk[pos].endX-info_bk[pos].x).arg(info_bk[pos].endY-info_bk[pos].y);
+                                    //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(info_bk[pos].score));
+                                    painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, info);
+                                }
+
+                            #if 0
+                                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                                // backup
+                                // claer
+                                memset((char*)&info_bk[pos], 0, sizeof(struct lpdr_info));
+                                info_bk[pos].x = msq_lpdr_result.data.data[pos].x;
+                                info_bk[pos].y = msq_lpdr_result.data.data[pos].y;
+                                info_bk[pos].endX = msq_lpdr_result.data.data[pos].endX;
+                                info_bk[pos].endY = msq_lpdr_result.data.data[pos].endY;
+                                info_bk[pos].score = msq_lpdr_result.data.data[pos].score;
+                                strBKNoFront[pos]   = strNoFront;
+                                strBKNoBack[pos]    = strNoBack;
+                                strBKHangulFileNameF[pos] = strHangulFileNameF;
+                                strBKHangulFileNameB[pos] = strHangulFileNameB;
+                                //memset((char*)&info_bk[pos].carNo, 0, 32);
+                                //memcpy((char*)&info_bk[pos].carNo, (char*)&msq_lpdr_info.data.carNo, strlen(msq_lpdr_info.data.carNo));
+
+                                pos++;
+                                msq_lpdr_result.data.detect_num = pos;
+
+                                //if(pos > 9) break;  // max
+                                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                            #endif     
+                                pos++;
+                                msq_lpdr_result.data.detect_num = pos;
+                                if(pos > 9) break;  // max                       
+
+                #endif   //#ifdef DISP_OBJ_LIST                        
                             }
-                            else
-                            {
-                                //painter->setPen(QColor(Qt::red));
-                                painter->setFont(lpd_box);
-
-                                painter->drawPixmap(rect_city.x(), 12 + 20 + pos*80, rect_city.width(), 24, QPixmap(strBKHangulFileNameF[pos].c_str()));
-                                painter->drawText(list_rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoFront[pos].c_str());
-                                painter->drawPixmap(rect_center.x(), 12 + 20 + pos*80, rect_center.width(), 24, QPixmap(strBKHangulFileNameB[pos].c_str()));
-                                painter->drawText(list_rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoBack[pos].c_str());
-                                //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(msq_lpdr_info.data.score));
-                            }
-
-                        #if 0
-                            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                            // backup
-                            // claer
-                            memset((char*)&info_bk[pos], 0, sizeof(struct lpdr_info));
-                            info_bk[pos].x = msq_lpdr_result.data.data[pos].x;
-                            info_bk[pos].y = msq_lpdr_result.data.data[pos].y;
-                            info_bk[pos].endX = msq_lpdr_result.data.data[pos].endX;
-                            info_bk[pos].endY = msq_lpdr_result.data.data[pos].endY;
-                            strBKNoFront[pos]   = strNoFront;
-                            strBKNoBack[pos]    = strNoBack;
-                            strBKHangulFileNameF[pos] = strHangulFileNameF;
-                            strBKHangulFileNameB[pos] = strHangulFileNameB;
-                            //memset((char*)&info_bk[pos].carNo, 0, 32);
-                            //memcpy((char*)&info_bk[pos].carNo, (char*)&msq_lpdr_info.data.carNo, strlen(msq_lpdr_info.data.carNo));
-
-                            pos++;
-                            msq_lpdr_result.data.detect_num = pos;
-
-                            //if(pos > 9) break;  // max
-                            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                        #endif     
-                            pos++;
-                            msq_lpdr_result.data.detect_num = pos;
-                            if(pos > 9) break;  // max                       
-
-            #endif   //#ifdef DISP_OBJ_LIST                        
+                            //else    // finish
+                            //{
+                            //    break;
+                            //}
                         }
-                        //else    // finish
-                        //{
-                        //    break;
-                        //}
                     }
-                }
+                }while(Mq_Lpdr_Info->MessageQueueQNum() > 0);
         #else       // do, while...                
                 do {
                     // claer
@@ -787,11 +1073,14 @@ void MainWindow::Update()
 
             #ifdef DISP_OBJ_LIST
                         GetCarNoInfo(msq_lpdr_info.data.carNo);
-                        QRectF list_rect_left((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + 20, 20 + pos*80,  (ui->screen->width()/3)*0.25, 48);
-                        QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + 20, 20 + pos*80,  (ui->screen->width()/3)*0.35, 48);
-                        QRectF list_rect_score((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + 20, 20 + pos*80 + 48,  (ui->screen->width()/3)*0.35, 48);
 
-                        if(msq_lpdr_info.data.y > red_offset)     // valid
+                        QRectF list_rect_left((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + 20,     20 + pos*80,        (ui->screen->width()/3)*0.25, 48);
+                        //QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + 20,   20 + pos*80,        (ui->screen->width()/3)*0.35, 48);
+                        QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + 20,   20 + pos*80,        (ui->screen->width()/3)*0.35, 48);
+                        QRectF list_rect_score((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.65 + 20,   20 + pos*80 + 48,   (ui->screen->width()/3)*0.30, 48);
+
+                        //if(msq_lpdr_info.data.y > red_offset)     // valid
+                        if((msq_lpdr_info.data.y*live_wnd_height/capHeight) > red_offset)     // valid
                         {
                             painter->setPen(QColor(Qt::yellow));
                             painter->setFont(font_lpr);
@@ -831,7 +1120,8 @@ void MainWindow::Update()
                         //memcpy((char*)&info_bk[pos].carNo, (char*)&msq_lpdr_info.data.carNo, strlen(msq_lpdr_info.data.carNo));
 
                         pos++;
-                        msq_lpdr_result.detect_num = pos;
+                        //msq_lpdr_result.detect_num = pos;         // rem. by ariari : 2022.11.14
+                        msq_lpdr_result.data.detect_num = pos;      // add(mod). by ariari : 2022.11.14
 
                         if(pos > 9) break;  // max
                         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -843,7 +1133,7 @@ void MainWindow::Update()
                 }while(Mq_Lpdr_Info->MessageQueueQNum() > 0);
         #endif  // for, while..                           
             }
-            else
+            else    // 이전데이터 디스플레이...
             {
                 for(int i=0; i<msq_lpdr_result.data.detect_num; i++)
                 {
@@ -857,28 +1147,39 @@ void MainWindow::Update()
 
             #ifdef DISP_OBJ_LIST
                     //GetCarNoInfo(info_bk[i].carNo);
-                    QRectF list_rect_left((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + 20, 20 + i*80,  (ui->screen->width()/3)*0.25, 48);
-                    QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.55 + 20, 20 + i*80,  (ui->screen->width()/3)*0.35, 48);
+                    QRectF list_rect_left((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.2 + 20,     80 + 20 + i*80,  (ui->screen->width()/3)*0.25, 48);
+                    QRectF list_rect_right((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.45 + 20,   80 + 20 + i*80,  (ui->screen->width()/3)*0.35, 48);
+                    QRectF list_rect_score((2*ui->screen->width())/3 + (ui->screen->width()/3)*0.65 + 20,   80 + 20 + i*80,  (ui->screen->width()/3)*0.30, 48);
                     
-                    if(info_bk[i].y > red_offset)     // valid
+                    //if(info_bk[i].y > red_offset)     // valid
+                    red_offset = 0;
+                    if((info_bk[i].y*live_wnd_height/capHeight) > red_offset)
                     {
                         painter->setPen(QColor(Qt::yellow));  // org
                         painter->setFont(font_lpr);           // org
 
-                        painter->drawPixmap(rect_city.x(), 20 + i*80, rect_city.width(), 48, QPixmap(strBKHangulFileNameF[i].c_str()));
+                        painter->drawPixmap(rect_city.x(), 80 + 20 + i*80, rect_city.width(), 48, QPixmap(strBKHangulFileNameF[i].c_str()));
                         painter->drawText(list_rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoFront[i].c_str());
-                        painter->drawPixmap(rect_center.x(), 20 + i*80, rect_center.width(), 48, QPixmap(strBKHangulFileNameB[i].c_str()));
+                        painter->drawPixmap(rect_center.x(), 80 + 20 + i*80, rect_center.width(), 48, QPixmap(strBKHangulFileNameB[i].c_str()));
                         painter->drawText(list_rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoBack[i].c_str());
+
+                        auto info = QString("%1:%2:%3").arg(info_bk[i].score).arg(info_bk[i].endX-info_bk[i].x).arg(info_bk[i].endY-info_bk[i].y);
+                        //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(info_bk[i].score));
+                        painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, info);
                     }
                     else
                     {
-                        //painter->setPen(QColor(Qt::red));
+                        painter->setPen(QColor(Qt::red));
                         painter->setFont(lpd_box);
 
-                        painter->drawPixmap(rect_city.x(), 12 + 20 + i*80, rect_city.width(), 24, QPixmap(strBKHangulFileNameF[i].c_str()));
+                        painter->drawPixmap(rect_city.x(), 80 + 12 + 20 + i*80, rect_city.width(), 48, QPixmap(strBKHangulFileNameF[i].c_str()));
                         painter->drawText(list_rect_left, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoFront[i].c_str());
-                        painter->drawPixmap(rect_center.x(), 12 + 20 + i*80, rect_center.width(), 24, QPixmap(strBKHangulFileNameB[i].c_str()));
+                        painter->drawPixmap(rect_center.x(), 80 + 12 + 20 + i*80, rect_center.width(), 48, QPixmap(strBKHangulFileNameB[i].c_str()));
                         painter->drawText(list_rect_right, Qt::AlignHCenter | Qt::AlignVCenter, strBKNoBack[i].c_str());
+
+                        auto info = QString("%1:%2:%3").arg(info_bk[i].score).arg(info_bk[i].endX-info_bk[i].x).arg(info_bk[i].endY-info_bk[i].y);
+                        //painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, QString::number(info_bk[i].score));
+                        painter->drawText(list_rect_score, Qt::AlignHCenter | Qt::AlignVCenter, info);
                     }
             #endif              
                 }
@@ -898,8 +1199,10 @@ void MainWindow::Update()
             box_pen.setWidth(4);
             painter->setPen(box_pen);
 
-            float ratio_w = (float)w1_w/roi_w;
-            float ratio_h = (float)w1_h/roi_h;
+            //float ratio_w = (float)w1_w/roi_w;
+            //float ratio_h = (float)w1_h/roi_h;
+            float ratio_w = (float)w1_w/adj_roi_w;  // add. by ariari : 2022.11.16
+            float ratio_h = (float)w1_h/adj_roi_h;  // add. by ariari : 2022.11.16
 
             if (msq_lpdr_result.detect_num > 0)
             {
@@ -943,6 +1246,11 @@ void MainWindow::Update()
 
         
 
+        // add. by ariari : begin - 2022.09.19
+        WriteDebugInfo(painter);
+        // add. by ariari : end - 2022.09.19
+        
+#if 0   // add. by ariari 
         // debug message(right/top)
         if (QFile::exists("/media/usb0/debug_enable"))
         {
@@ -964,9 +1272,17 @@ void MainWindow::Update()
             msg = string_format(" Total Captured Frame : %ld, %.2f[FPS]", st_cam.capCount, st_cam.capFPS);
             painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
 
+            // rem. by ariari : 2022.11.09 : begin
+            //debug_rect.setY(debug_rect.y()+30);
+            //msg = string_format(" Target Clock Value : %ld[Hz]", st_cam.tarClk);
+            //painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            // rem. by ariari : 2022.11.09 : end
+
+            // add. by ariari : 2022.11.09 : begin
             debug_rect.setY(debug_rect.y()+30);
-            msg = string_format(" Target Clock Value : %ld[Hz]", st_cam.tarClk);
+            msg = string_format(" Target AE Value : %d", st_cam.targetAE);
             painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
+            // add. by ariari : 2022.11.09 : end
 
             debug_rect.setY(debug_rect.y()+30);
             msg = string_format(" Exposure - MIN : %.2f", st_cam.expMin);
@@ -983,7 +1299,7 @@ void MainWindow::Update()
             painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
             
             debug_rect.setY(debug_rect.y()+30);
-            msg = string_format(" Gain - MIN : %.2f", st_cam.gainMin);
+            msg = string_format(" Gain - MIN : %.2f[dB]", st_cam.gainMin);
             painter->drawText(debug_rect, Qt::AlignTop | Qt::AlignLeft, msg.c_str());
             debug_rect.setY(debug_rect.y()+25);
             msg = string_format(" Gain - MAX : %.2f[dB]", st_cam.gainMax);
@@ -1008,6 +1324,7 @@ void MainWindow::Update()
             
 
         }
+#endif  // // debug message(right/top)
 
 #if false
         carNo[0] = 51;
@@ -1093,8 +1410,9 @@ void MainWindow::Update()
         ui->screen->pixmap()->save("/oem/Screen_shot/monitor_tmp.jpg");
         rename("/oem/Screen_shot/monitor_tmp.jpg", "/oem/Screen_shot/monitor.jpg");
 
+        WriteDebugInfo(nullptr);
+        
         usleep(5000000);
-       
     }
 }
 

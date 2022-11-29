@@ -1,6 +1,7 @@
 ﻿#include <QProcess>
 #include <QFile>
 #include <QTextStream>
+#include <QDesktopWidget>
 
 #include <iostream>
 #include <sstream>
@@ -22,6 +23,11 @@ using namespace std;
 #define FD_LED_CAMERA	"/sys/class/gpio/gpio158/value"
 #define FD_LED_SWITCH	"/sys/class/gpio/gpio52/value"	// IR STATUS(Enable output)
 // add. by ariar : 2022.07.18 - end
+
+// add. by ariar : 2022.10.12 - begin
+#define MARGIN_HOR 18
+#define MARGIN_VER 18
+// add. by ariar : 2022.10.12 - end
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -87,6 +93,8 @@ MainWindow::MainWindow(QWidget *parent)
     // MAC Address
     ui->label_SW->setStyleSheet("QLabel { background-color : gray; color : black; }");
     ui->label_mac->setText("ready...");
+    ui->label_mac->hide();                // add. by ariari : 2022.10.12
+    ui->label_10->hide();                // add. by ariari : 2022.10.12
 
     // add. by ariar : 2022.07.18 - begin
     ui->label_SW->setStyleSheet("QLabel { background-color : gray; color : black; }");
@@ -185,8 +193,59 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::CheckScreenGeometry()
+{
+    // check connection 
+    // /sys/class/drm/card0-HDMI-A-1/status : connected or disconnected
+    QFile file("/sys/class/drm/card0-HDMI-A-1/status");
+    if(!file.open(QFile::ReadOnly | QFile::Text))
+    {
+        qDebug() << " Could not open the file for reading";
+        //return "";
+    }
+
+    QTextStream in(&file);
+    QString statusTxt = in.readLine();
+    file.close();
+
+    // HDMI disconnected
+    if(statusTxt.compare("disconnected") == 0) return;
+
+    // add. by ariari : 2022.11.11 - begin
+    QFile file_mode("/sys/class/drm/card0-HDMI-A-1/mode");
+    if(!file_mode.open(QFile::ReadOnly | QFile::Text))
+    {
+        qDebug() << " Could not open the file for reading";
+        //return "";
+    }
+
+    QTextStream in_mode(&file_mode);
+    QString modeTxt = in_mode.readLine();
+    file_mode.close();
+    QStringList list = modeTxt.split("x");
+    screenWidth = stoi(list.at(0).toStdString().c_str());
+    screenHeight = stoi(list.at(1).toStdString().c_str());
+    //printf("HDMI Mode = %s, (%dx%d)\n", modeTxt.toStdString().c_str(), screenWidth, screenHeight);
+    // add. by ariari : 2022.11.11 - end
+
+    QMainWindow *window = new QMainWindow();
+    QRect rec = QApplication::desktop()->screenGeometry();
+    if (screenWidth != rec.width() || screenHeight != rec.height())
+    {
+        //printf("screenWidth : %d, screenHeight : %d, rec.width() : %d, rec.height() : %d\n", screenWidth, screenHeight, rec.width(), rec.height());
+
+        screenWidth     = rec.width();
+        screenHeight    = rec.height();
+        window->move(QPoint(rec.x(), rec.y()));
+        window->resize(rec.width(), rec.height());
+    }
+    delete window;
+}
+
 void MainWindow::updateProgressBar()
 {
+    CheckScreenGeometry();  // add. by ariari : 2022.10.12
+
     // Running Time
 #if false
     int nElapsedTime = runTime.elapsed();
@@ -362,7 +421,8 @@ void MainWindow::updateEth0()
             ui->label_eth0_conn->setText("ready...");
         }
 
-        updateMacAddress();
+	// rem. by ariari : 2022.10.12
+        //updateMacAddress();
     }
 
     // 종료

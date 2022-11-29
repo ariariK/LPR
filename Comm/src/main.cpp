@@ -94,12 +94,20 @@ void * thread_socket_ctrl(void* args)
 void* thread_socket_man(void* args)
 {
   CommSocket* comm = (CommSocket*)args;
-
-  Ipcs* Mq_Lpdr   = new Ipcs(KEY_NUM_MQ_LPDR, 0);
-  Mq_Lpdr->MessageQueueInit();
-
   string log;
   string fname;
+
+  Ipcs* Mq_Lpdr   = new Ipcs(KEY_NUM_MQ_LPDR, 0);
+  //Mq_Lpdr->MessageQueueInit();
+  // add. by ariari : 2022.11.25 - begin
+  if(Mq_Lpdr->MessageQueueInit() < 0)
+  {
+    log = "[Error] Mq_Lpdr - MessageQueueInit = -1";
+    ERR_LOG(log);
+    bIsRunningSocketMan = false; // EXIT
+    exit(1);
+  }
+  // add. by ariari : 2022.11.25 - end
 
   int sent  = 0;
 #if true  // once
@@ -137,12 +145,31 @@ void* thread_socket_man(void* args)
   {
     int qnum = Mq_Lpdr->MessageQueueQNum();
     //cout << "mq_lpdr queue size = " << qnum << endl;
+    // add. by ariari : 2022.11.25 - begin
+    if(qnum < 0)  // error
+    {
+      log = "[Error] Mq_Lpdr - queue num = -1";
+      ERR_LOG(log);
+      bIsRunningSocketMan = false; // EXIT
+      break;
+    }
+    // add. by ariari : 2022.11.25 - end
 
     sent  = 0;
     if(qnum)  // not empty
     {
       //pthread_mutex_lock(&mutex_socket);
-      Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr);
+      //Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr); // rem. by ariari : 2022.11.25
+      // add. by ariari : 2022.11.25 - begin
+      if(Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr) < 0)  // error
+      {
+        log = "[Error] Mq_Lpdr - MessageQueueRead = -1";
+        ERR_LOG(log);
+        bIsRunningSocketMan = false; // EXIT
+        break;
+      }
+      // add. by ariari : 2022.11.25 - end
+
       //cout << "msq_lpdr.data.timestamp = " << msq_lpdr.data.timestamp << endl;   
       //cout << "msq_lpdr.data.status = " << msq_lpdr.data.status << endl;   
       //cout << "msq_lpdr.data.carNo = " << msq_lpdr.data.carNo << endl;   
@@ -236,6 +263,7 @@ void* thread_socket_man(void* args)
 
   log = "EXIT Thread(socket_man)";
   INFO_LOG(log);
+  exit(1);
 
   return nullptr;
 }
@@ -253,11 +281,32 @@ void* thread_socket_send(void* args)
   while(bIsRunningSocketSend)
   {
     int qnum = Mq_Lpdr->MessageQueueQNum();
+    // add. by ariari : 2022.11.25 - begin
+    if(qnum < 0)  // error
+    {
+      log = "[Error] Mq_Lpdr - queue num = -1";
+      ERR_LOG(log);
+      bIsRunningSocketMan = false; // EXIT
+      break;
+    }
+    // add. by ariari : 2022.11.25 - end
+
     //cout << "mq_lpdr queue size = " << qnum << endl;
     if(qnum)  // not empty
     {
       pthread_mutex_lock(&mutex_socket);
-      Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr);
+      //Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr); // rem. by ariari : 2022.11.25
+      // add. by ariari : 2022.11.25 - begin
+      if(Mq_Lpdr->MessageQueueRead((char *)&msq_lpdr) < 0)  // error
+      {
+        pthread_mutex_unlock(&mutex_socket);
+
+        log = "[Error] Mq_Lpdr - MessageQueueRead = -1";
+        ERR_LOG(log);
+        break;
+      }
+      // add. by ariari : 2022.11.25 - end
+      
 
       //cout << "msq_lpdr.data = " << msq_lpdr.data.timestamp << endl;
 

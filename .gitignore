@@ -4,6 +4,11 @@ bin-release/
 [Oo]bj/
 [Bb]in/
 
+# test folder
+GigEGrabMVS/
+QT5_Demo/
+SysMon_BK/
+
 GigEGrab/.obj/
 SysMon/*.o
 

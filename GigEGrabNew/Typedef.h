@@ -68,7 +68,7 @@ std::string string_format(const std::string& format, Args ... args)
 //#define GIGE_CAMERA_OFFSET_Y        240       // crop center @HD
 
 #define GIGE_CAMERA_FRAME_RATE_ENABLE   0
-#define GIGE_CAMERA_FRAME_RATE          30.0
+#define GIGE_CAMERA_FRAME_RATE          20.0
 
 #pragma pack(push, 1)
 typedef struct stCamerCfg

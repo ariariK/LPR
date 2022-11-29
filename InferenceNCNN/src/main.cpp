@@ -287,6 +287,9 @@ int deleteFile(string fname)
     return 1;
 }
 
+// add. by ariari : 2022.11.22
+string file_cfg = "/oem/config_lpr.txt";
+
 //#define LPR_ANALYSIS_EN   // 알고리즘 테스트용
 void* thread_lpr(void* arg)
 {
@@ -306,8 +309,12 @@ void* thread_lpr(void* arg)
     int roi_sy      = 0;
     int roi_w       = 1920;
     int roi_h       = 1080;
+    int limit_w     = 100;      // add. by ariari : 2022.09.20
+    int limit_h     = 30;       // add. by ariari : 2022.11.22
+    float fScore    = 0.5;      // add. by ariari : 2022.11.16
+    float fWeight   = 1.0;
     ifstream cFile;
-    string file_cfg = "/oem/config_lpr.txt";
+    //string file_cfg = "/oem/config_lpr.txt";  // rem. by ariari : 2022.11.22
     cFile.open(file_cfg);
 	if (cFile.is_open())
 	{
@@ -340,6 +347,22 @@ void* thread_lpr(void* arg)
             else if (name.compare("roi_h") == 0)
             {
                 roi_h = stoi(value);
+            }
+            else if (name.compare("limit_w") == 0)
+            {
+                limit_w = stoi(value);
+            }
+            else if (name.compare("limit_h") == 0)
+            {
+                limit_h = stoi(value);
+            }
+            else if (name.compare("minScore") == 0)
+            {
+                fScore = stof(value);
+            }
+            else if (name.compare("sharpWeight") == 0)
+            {
+                fWeight = stof(value);
             }
         }
     }
@@ -390,8 +413,14 @@ void* thread_lpr(void* arg)
 #endif
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // rem. by ariari : 2022.11.09 - begin
     Ipcs *Sm_Grab = new Ipcs(KEY_NUM_SM, MEM_SIZE_SM);
     Sm_Grab->SharedMemoryInit();
+    // rem. by ariari : 2022.11.09 - end
+    // add. by ariari : 2022.11.09 - begin
+    Ipcs *Sm_GrabLpr = new Ipcs(KEY_NUM_SM2, MEM_SIZE_SM2);
+    Sm_GrabLpr->SharedMemoryInit();
+    // add. by ariari : 2022.11.09 - end
 
     Ipcs *Sm_Res = new Ipcs(KEY_NUM_SM_RES, MEM_SIZE_SM_RES);
     Sm_Res->SharedMemoryInit();    
@@ -433,9 +462,14 @@ void* thread_lpr(void* arg)
 
     while(is_running) 
     {
-        if (Mq_Grab_Img->MessageQueueQNum() < 1)    // empty
+        int qnum =  Mq_Grab_Img->MessageQueueQNum();    // add. by ariari : 2022.10.21(grab이생성, 늦게실행되면 -1)
+        //if (Mq_Grab_Img->MessageQueueQNum() < 1)    // empty
+        if (qnum < 1)    // empty
         {
-            usleep(1000000);
+            //printf("Mq_Grab_Img->MessageQueueQNum() = %d\n", qnum);
+            if(qnum < 0) break; // add. by ariari : 2022.10.21 (restart)
+            //usleep(1000000);
+            usleep(1000);
             continue;
         }
 
@@ -453,17 +487,21 @@ void* thread_lpr(void* arg)
         capHeight   = msq.data.capHeight;
 
         // get image
-        if (Sm_Grab->SharedMemoryRead((char *)buffer) < 0)
+        //if (Sm_Grab->SharedMemoryRead((char *)buffer) < 0)        // rem. by ariari : 2022.11.09
+        if (Sm_GrabLpr->SharedMemoryRead((char *)buffer) < 0)       // add. by ariari : 2022.11.09
         {
-            Sm_Grab->SharedMemoryInit();
+            //Sm_Grab->SharedMemoryInit();                          // rem. by ariari : 2022.11.09
+            Sm_GrabLpr->SharedMemoryInit();                         // add. by ariari : 2022.11.09
             EMERG_LOG(string("[Error!!!]SharedMemoryRead()"));
             break;
         }
+        Mq_Grab_Img->MessageQueueRead((char*)&msq);                  // add. by ariari : 2022.11.09
 
 //#if true   // real code
 #ifndef LPR_ANALYSIS_EN   
 
         frame_gray = cv::Mat(msq.data.capHeight, msq.data.capWidth, CV_8UC1, (char *)buffer);
+
         // add. by ariari : 2022.05.16 - begin
         roi_w = ((roi_sx + roi_w) > msq.data.capWidth) ? msq.data.capWidth : roi_w;
         roi_h = ((roi_sy + roi_h) > msq.data.capHeight) ? msq.data.capHeight : roi_h;
@@ -471,6 +509,20 @@ void* thread_lpr(void* arg)
         // image crop(roi)
         cv::Rect rect(roi_sx, roi_sy, roi_w, roi_h);
         frame_gray = frame_gray(rect);
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // add. by ariari : 2022.11.17 - begin
+        // 신규 카메라, H/W sharpening 지원하지 않음
+        // sharpening
+        cv::Mat img_blur;
+        cv::blur(frame_gray, img_blur, cv::Size(5,5));
+        cv::Mat img_gap = frame_gray - img_blur;
+        //Mat img_sharp = frame_gray + img_gap;
+        frame_gray = frame_gray + img_gap*fWeight;
+        // add. by ariari : 2022.11.17 - end
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
         //cv::imwrite("/oem/Screen_shot/crop.jpg", frame_gray);
 
         // add. by ariari : 2022.05.16 - end
@@ -545,12 +597,33 @@ void* thread_lpr(void* arg)
             //int ib = -1; // index of box
             if (boxes.size())
             {
+                int bestResult = -1;
                 //bool bIsWanted = false;
                 bIsWanted = false;  // mod. by ariari : 2022.03.21
                 int valid_box = 0;  // add. by ariari : 2022.05.20
                 for (int i=0; i < boxes.size();i++)
                 { 
                     int len = boxes[i].lpr_string.size();
+
+                    //cout << "box_" << (i+1) << " : " <<  boxes[i].lpr_string << ", score = " << boxes[i].score << endl;
+
+                    // boxes[].x1 : start x
+                    // boxes[].x2 : end x
+                    // boxes[].y1 : start x
+                    // boxes[].y2 : end x
+                    int lpd_w = boxes[i].x2 - boxes[i].x1;
+                    int lpd_h = boxes[i].y2 - boxes[i].y1;
+
+                    //if(lpd_w < limit_w) {                                     // rem. by ariari : 2022.11.16
+                    //if(lpd_w < limit_w || fScore > boxes[i].score) {          // mod. by ariari : 2022.11.16
+                    //if(lpd_w < limit_w || lpd_h < limit_h || fScore > boxes[i].score) {        // mod. by ariari : 2022.11.22
+                    if(lpd_w < limit_w || lpd_h < limit_h) {                    // mod. by ariari : 2022.11.24, (크기정보만으로 1차 필터링)
+                        //cout << "lpd minimum width = " << limit_w << ", lpd_w is too small : " << lpd_w << endl;
+                        //msg = string_format("lpd minimum width = %d, , lpd_w is too small : = %d", limit_w, lpd_w);
+                        //INFO_LOG(msg);
+                        //DEBUG_LOG(msg);
+                        continue;   // too small
+                    }
 
                     // add. by ariari : 2022.05.20 - begin
                     //cout << "box_" << (i+1) << " : " <<  boxes[i].lpr_string << ", len = " << len << ", score = " << boxes[i].score << endl;
@@ -587,7 +660,11 @@ void* thread_lpr(void* arg)
                         // add. by ariari : 2022.04.04 - begin
 
                         // 수배차량 조회
-                        bIsWanted = isWanted(boxes[i].lpr_string.c_str());
+                        //bIsWanted = isWanted(boxes[i].lpr_string.c_str());    // rem. by arairi : 2022.11.24
+                        // add. by ariari : 2022.11.24 - begin
+                        // 기준 점수 확인하여 수배조회, 에러요인 제거
+                        if(fScore <= boxes[i].score) bIsWanted = isWanted(boxes[i].lpr_string.c_str());
+                        // add. by ariari : 2022.11.24 - end
                         if(bIsWanted)
                         {
                             //std::cout << "수배차량 : " << boxes[i].lpr_string.c_str() << std::endl;
@@ -599,9 +676,21 @@ void* thread_lpr(void* arg)
                             msg = string_format("일반차량 : %s", boxes[i].lpr_string.c_str());
                         }
                         INFO_LOG(msg);
+
 #ifndef EN_DEMO
+                        // add. by ariari : 2022.11.17 - begin
+                        // 단일검출에도 이전에 검출한 이력있으면 다음 검출정보 선택하도록 수정(예정)
+                        bestResult = ib;
+                        // add. by ariari : 2022.11.17 - end
+
                         break;  // big one
 #else
+                        // add. by ariari : 2022.11.17 - begin
+                        if(bestResult < 0)  // 점수순으로 정렬되었기때문에 가장 처음 데이터를 메인 화면에 표시되도록 한다.
+                        {
+                            bestResult = ib;
+                        }
+                        // add. by ariari : 2022.11.17 - end
 
                     #ifdef EN_LIST_DISP
                         msq_lpdr_result.msg_type = 1;
@@ -617,7 +706,7 @@ void* thread_lpr(void* arg)
                         msq_lpdr_result.data.data[pos].score = boxes[ib].score * 100;
                         pos++;
                         msq_lpdr_result.data.detect_num = pos;
-                        #else
+                    #else
                         msq_lpdr_info.msg_type = 1;
                         memset(msq_lpdr_info.data.status, 0, sizeof(msq_lpdr_info.data.status));
                         memset(msq_lpdr_info.data.carNo, 0, sizeof(msq_lpdr_info.data.carNo));
@@ -679,6 +768,16 @@ void* thread_lpr(void* arg)
                 int qsize = Mq_Lpdr->MessageQueueQNum();
                 msg = string_format("Inference qsize : %d", qsize);
                 INFO_LOG(msg);
+                
+                // add. by ariari : 2022.11.25 - begin
+                if(qsize < 0)
+                {
+                    msg = string_format("Message Queue has some error!!! restart program...");
+                    INFO_LOG(msg);
+                    break;
+                }
+                // add. by ariari : 2022.11.25 - end
+
                 // message queue full
                 // old data : delete
                 // new data : add
@@ -698,18 +797,23 @@ void* thread_lpr(void* arg)
                 //if(ib > -1 && qsize < MQ_LPDR_MAX_QSIZE)
                 if(ib > -1)
                 {
+                    // add. by ariari : 2022.11.17 - begin
+                    //
+                    // ib => bestResult : 치환, 멀티검출시 마지막 결과에서 가장 높은 결과로 변경
+                    // add. by ariari : 2022.11.17 - end
+
                     std::string fname_tmp;
                     time_t msecs_time = getTimemsec();
 
-                    fInfo.fileOrg = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[ib].lpr_string + "_0.jpg";
+                    fInfo.fileOrg = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[bestResult].lpr_string + "_0.jpg";
                     fname_tmp = "/oem/Screen_shot/0_tmp.jpg";
                     
                     cv::imwrite(fInfo.fileOrg.c_str(), frame_gray);
                     cv::imwrite(fname_tmp.c_str(), frame_gray);
 
-                    cv::Rect rect(boxes[ib].x1, boxes[ib].y1, boxes[ib].x2-boxes[ib].x1, boxes[ib].y2-boxes[ib].y1);
+                    cv::Rect rect(boxes[bestResult].x1, boxes[bestResult].y1, boxes[bestResult].x2-boxes[bestResult].x1, boxes[bestResult].y2-boxes[bestResult].y1);
                     cv::Mat lpd = frame_gray(rect);
-                    fInfo.fileLpd = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[ib].lpr_string + "_1.jpg";
+                    fInfo.fileLpd = "/userdata/result/" + to_string(msecs_time) + "_" + boxes[bestResult].lpr_string + "_1.jpg";
                     fname_tmp = "/oem/Screen_shot/1_tmp.jpg";
 
                     cv::imwrite(fInfo.fileLpd.c_str(), lpd);
@@ -728,17 +832,18 @@ void* thread_lpr(void* arg)
                     memset(msq_lpdr.data.carNo, 0, sizeof(msq_lpdr.data.carNo));
                     string status = convertWantedType(code_value);  // from database(table:wanted, col[0,1,2], col[1]:code)
                     strncpy(msq_lpdr.data.status, status.c_str(), status.size());   
-                    strncpy(msq_lpdr.data.carNo, boxes[ib].lpr_string.c_str(), boxes[ib].lpr_string.size());
-                    msq_lpdr.data.x = boxes[ib].x1;
-                    msq_lpdr.data.y = boxes[ib].y1;
-                    msq_lpdr.data.endX = boxes[ib].x2;
-                    msq_lpdr.data.endY = boxes[ib].y2;
+                    strncpy(msq_lpdr.data.carNo, boxes[bestResult].lpr_string.c_str(), boxes[bestResult].lpr_string.size());
+                    msq_lpdr.data.x = boxes[bestResult].x1;
+                    msq_lpdr.data.y = boxes[bestResult].y1;
+                    msq_lpdr.data.endX = boxes[bestResult].x2;
+                    msq_lpdr.data.endY = boxes[bestResult].y2;
+                    msq_lpdr.data.score = boxes[bestResult].score * 100;  // add. by ariari : 2022.11.16
                    
                     //cout << "code_value : " << code_value << endl;
                     //cout << "msq_lpdr.data.status : " << msq_lpdr.data.status << endl;
                     //cout << "msq_lpdr.data.carNo : " << msq_lpdr.data.carNo << endl;
                     
-                    msg = string_format("DB - carNo:%s, status:%s, x:%d, y:%d, endX:%d, endY:%d", msq_lpdr.data.carNo, msq_lpdr.data.status, msq_lpdr.data.x, msq_lpdr.data.y, msq_lpdr.data.endX, msq_lpdr.data.endY);
+                    msg = string_format("DB(score:%d) - carNo:%s, status:%s, x:%d, y:%d, endX:%d, endY:%d, W:%d, H:%d, S:%d", msq_lpdr.data.score, msq_lpdr.data.carNo, msq_lpdr.data.status, msq_lpdr.data.x, msq_lpdr.data.y, msq_lpdr.data.endX, msq_lpdr.data.endY, msq_lpdr.data.endX-msq_lpdr.data.x, msq_lpdr.data.endY-msq_lpdr.data.y, msq_lpdr.data.score);
                     INFO_LOG(msg);
 
 #ifdef USE_Q_FOR_FILELIST
@@ -834,7 +939,8 @@ void* thread_lpr(void* arg)
 
     sqlite3_close(db);
 
-    SAFE_DELETE(Sm_Grab);
+    SAFE_DELETE(Sm_Grab);     // rem. by ariari : 2022.11.09
+    SAFE_DELETE(Sm_GrabLpr);    // add. by ariari : 2022.11.09
     SAFE_DELETE(Sm_Res);
     SAFE_DELETE(Sm_Lpr);
     SAFE_DELETE(Mq_Lpdr);
@@ -860,6 +966,7 @@ int main(int argc, char** argv) {
     string strDetectModelBin = "";
     string strDetectModelParam = "";
     string strOCRModel = "";
+
     //while ((res=getopt(argc, argv, "t:d:p:o:h")) != -1) {
     while ((res=getopt(argc, argv, "t:d:p:o:f:h")) != -1) {    // add. by ariari : 2022.03.18
 		switch(res) {
@@ -878,8 +985,11 @@ int main(int argc, char** argv) {
 			strOCRModel = optarg;
 		break;
 
-        case 'f':
+        // add. by ariari : 2022.11.22 - begin
+        case 'f':   // configure file
+            file_cfg = optarg;
         break;
+        // add. by ariari : 2022.11.22 - end
 			
 		case 'h':
       std::cout << " [Usage]: " << argv[0] << " [-h]\n"
@@ -898,6 +1008,9 @@ int main(int argc, char** argv) {
 	INFO_LOG(string("#################################################################################################"));
 	INFO_LOG(string("# InferenceNCNN Configs                                                                              #"));
 	INFO_LOG(string("#################################################################################################"));
+    printf("config file : %s\n", file_cfg.c_str());
+    msg = string_format("config file : %s", file_cfg.c_str());
+    INFO_LOG(msg);
     msg = string_format("coolTime : %d", coolTime);
     INFO_LOG(msg);
     msg = string_format("strDetectModelBin : %s", strDetectModelBin.c_str());

@@ -101,7 +101,9 @@ private:
     int roi_h;
     // add. by ariari : 2022.05.16 - end
 
-    
+    // add. by ariari : begin - 2022.09.19
+    void WriteDebugInfo(QPainter *pPainter);
+    // add. by ariari : end - 2022.09.19
     void GetParameters();
     void CheckScreenGeometry();
     void GetCarNoInfo(std::string strCarNo);
@@ -135,13 +137,23 @@ private:
 		int capWidth;
 		int capHeight;
 
+        // add. by ariri : 2022.11.22 - begin
+		int			draw_en;
+		int 		roi_sx;
+		int 		roi_sy;
+		int			roi_w;
+		int			roi_h;
+		// add. by ariri : 2022.11.22 - end
+
 		uint64_t	capCount;
         double		capFPS;
 
         int64_t		tarClk;
+        int			targetAE;	    // add. by ariari : 2022.11.09
 		double		expMax;
 		double		expMin;
 		double		expCur;
+        double		expCurPercent;	// add. by ariari : 2022.11.14
 		
 		int				dnStatus;
 		float			shMax;
